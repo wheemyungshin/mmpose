@@ -1,7 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import argparse
 import warnings
-
+import os
+import os.path as osp
 import numpy as np
 import torch
 
@@ -112,7 +113,7 @@ def parse_args():
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--show', action='store_true', help='show onnx graph')
-    parser.add_argument('--output-file', type=str, default='tmp.onnx')
+    parser.add_argument('--output-dir', type=str, default='onnx_models')
     parser.add_argument('--opset-version', type=int, default=11)
     parser.add_argument(
         '--verify',
@@ -155,11 +156,14 @@ if __name__ == '__main__':
         raise NotImplementedError(
             'Please implement the forward method for exporting.')
 
+    os.makedirs(args.output_dir, exist_ok=True)
+    output_file = os.path.join(args.output_dir, osp.splitext(osp.basename(args.config))[0]+".onnx")
+
     # convert model to onnx file
     pytorch2onnx(
         model,
         args.shape,
         opset_version=args.opset_version,
         show=args.show,
-        output_file=args.output_file,
+        output_file=output_file,
         verify=args.verify)

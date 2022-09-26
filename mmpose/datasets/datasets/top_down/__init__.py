@@ -8,6 +8,8 @@ from .topdown_halpe_dataset import TopDownHalpeDataset
 from .topdown_jhmdb_dataset import TopDownJhmdbDataset
 from .topdown_mhp_dataset import TopDownMhpDataset
 from .topdown_mpii_dataset import TopDownMpiiDataset
+from .topdown_vgg_dataset import TopDownVGGDataset
+from .topdown_vggbbc_dataset import TopDownVGGBBCDataset
 from .topdown_mpii_trb_dataset import TopDownMpiiTrbDataset
 from .topdown_ochuman_dataset import TopDownOCHumanDataset
 from .topdown_posetrack18_dataset import TopDownPoseTrack18Dataset
@@ -19,6 +21,8 @@ __all__ = [
     'TopDownCocoWholeBodyDataset',
     'TopDownCrowdPoseDataset',
     'TopDownMpiiDataset',
+    'TopDownVGGDataset',
+    'TopDownVGGBBCDataset',
     'TopDownMpiiTrbDataset',
     'TopDownOCHumanDataset',
     'TopDownPoseTrack18Dataset',

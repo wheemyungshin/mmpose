@@ -2,10 +2,13 @@
 import os
 import warnings
 from argparse import ArgumentParser
+import glob
 
 from mmpose.apis import (inference_top_down_pose_model, init_pose_model,
                          process_mmdet_results, vis_pose_result)
 from mmpose.datasets import DatasetInfo
+
+import mmcv
 
 try:
     from mmdet.apis import inference_detector, init_detector
@@ -67,7 +70,7 @@ def main():
     args = parser.parse_args()
 
     assert args.show or (args.out_img_root != '')
-    assert args.img != ''
+    #assert args.img != ''
     assert args.det_config is not None
     assert args.det_checkpoint is not None
 
@@ -87,52 +90,51 @@ def main():
     else:
         dataset_info = DatasetInfo(dataset_info)
 
-    image_name = os.path.join(args.img_root, args.img)
+    for image_name in mmcv.track_iter_progress(glob.glob(args.img_root+"/*.jpg")):
+        # test a single image, the resulting box is (x1, y1, x2, y2)
+        mmdet_results = inference_detector(det_model, image_name)
 
-    # test a single image, the resulting box is (x1, y1, x2, y2)
-    mmdet_results = inference_detector(det_model, image_name)
+        # keep the person class bounding boxes.
+        person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
 
-    # keep the person class bounding boxes.
-    person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
+        # test a single image, with a list of bboxes.
 
-    # test a single image, with a list of bboxes.
+        # optional
+        return_heatmap = False
 
-    # optional
-    return_heatmap = False
+        # e.g. use ('backbone', ) to return backbone feature
+        output_layer_names = None
 
-    # e.g. use ('backbone', ) to return backbone feature
-    output_layer_names = None
 
-    pose_results, returned_outputs = inference_top_down_pose_model(
-        pose_model,
-        image_name,
-        person_results,
-        bbox_thr=args.bbox_thr,
-        format='xyxy',
-        dataset=dataset,
-        dataset_info=dataset_info,
-        return_heatmap=return_heatmap,
-        outputs=output_layer_names)
+        pose_results, returned_outputs = inference_top_down_pose_model(
+            pose_model,
+            image_name,
+            person_results,
+            bbox_thr=args.bbox_thr,
+            format='xyxy',
+            dataset=dataset,
+            dataset_info=dataset_info,
+            return_heatmap=return_heatmap,
+            outputs=output_layer_names)
 
-    if args.out_img_root == '':
-        out_file = None
-    else:
-        os.makedirs(args.out_img_root, exist_ok=True)
-        out_file = os.path.join(args.out_img_root, f'vis_{args.img}')
+        if args.out_img_root == '':
+            out_file = None
+        else:
+            os.makedirs(args.out_img_root, exist_ok=True)
+            out_file = os.path.join(args.out_img_root, image_name)
 
-    # show the results
-    vis_pose_result(
-        pose_model,
-        image_name,
-        pose_results,
-        dataset=dataset,
-        dataset_info=dataset_info,
-        kpt_score_thr=args.kpt_thr,
-        radius=args.radius,
-        thickness=args.thickness,
-        show=args.show,
-        out_file=out_file)
-
+        # show the results
+        vis_pose_result(
+            pose_model,
+            image_name,
+            pose_results,
+            dataset=dataset,
+            dataset_info=dataset_info,
+            kpt_score_thr=args.kpt_thr,
+            radius=args.radius,
+            thickness=args.thickness,
+            show=args.show,
+            out_file=out_file)
 
 if __name__ == '__main__':
     main()

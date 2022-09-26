@@ -13,29 +13,23 @@ from ..base import Kpt2dSviewRgbImgTopDownDataset
 
 
 @DATASETS.register_module()
-class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
+class TopDownVGGBBCDataset(Kpt2dSviewRgbImgTopDownDataset):
     """VGG Youtube Dataset for top-down pose estimation.
 
-    The videos were downloaded from YouTube and automatically scaled and cropped (using an upper body detector) so that the shoulder width is 100 pixels wide (on average across the video). 100 frames from each of the scaled and cropped videos were randomly chosen and manually annotated with upper body joints. The Head, Right wrist, Left wrist, Right elbow, Left elbow, Right shoulder and Left shoulder were annotated.
+1. bbcpose.mat:
+        Contains all dataset metadata in one variable.
+        demo.m shows an example of how to use this data.
 
-    Annotated frames are contained within the GT_frames.zip package.
 
-    The matlab file YouTube_Pose_dataset.mat contains a structure array called 'data'. There are 50 elements in the array, one for each video of the dataset. Each element is structured as follows:
-
-    data(i).url - string for the youtube weblink for video i
-    data(i).videoname - string for the code name of the youtube video
-    data(i).locs - 2 by 7 by 100 array containing 2D locations for the ground truth upper body joints. Row 1 are x values and Row 2 are y values. Columns are formatted from left to right as: Head, Right wrist, Left wrist, Right elbow, Left elbow, Right shoulder and Left shoulder (Person centric).
-    data(i).frameids = 1 by 100 array containing the frame indicies which were annotated.
-    data(i).label_names - cell array of strings for corresponding body joint labels
-    data(i).crop - 1 by 4 array giving the crop bounding box [topx topy botx boty] from the original video
-    data(i).scale - value the video should be scaled by
-    data(i).imgPath - cell array containing paths to the pre scaled and cropped annotated frames
-    data(i).origRes - 1 by 2 array [height,width] resolution of original video
-    data(i).isYouTubeSubset - boolean, true if video belongs to the YouTube Subset dataset
-
-    e.g. data(i).imgPath{f} refers to video i and frame f, with frame id data(i).frameids(f) and joint locations data(i).locs(:,:,f)
-
-    Note: ground truth body joint locations correspond to cropped and scaled videos (original videos are first cropped, then scaled using the appropriate values).
+        bbcpose =
+        1x92 struct array with fields:
+                videoName               - original video name
+                type                    - train/test/val
+                source                  - which annotation method has been used
+                train_frames    - train frame numbers
+                train_joints    - training joints
+                test_frames             - manual ground truth frames (if any -- only for test frames)
+                test_joints             - manual ground truth joints (if any -- only for test frames)
 
     VGG keypoint indexes::
 
@@ -59,7 +53,6 @@ class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
     """
 
     
-
     def __init__(self,
                  ann_file,
                  img_prefix,
@@ -95,34 +88,37 @@ class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
     def _get_db(self):
         # create train/val split
         mat = loadmat(self.ann_file)
-        mat_data = mat['data'][0]
-        mat_list = []
-        for i in range(mat_data.shape[0]):
-            mat_list.append(np.asarray(mat_data[i]))
-        anno = np.array(mat_list)
-        #numpy data of 50 videos
+        anno = mat['bbcpose'][0][:20]
 
         gt_db = []
         bbox_id = 0
-        for a_raw in anno:
-            a = list(a_raw)
-            #list with length 9
-            #0.url - string for the youtube weblink for video i
-            #1.videoname - string for the code name of the youtube video
-            #2.locs - 2 by 7 by 100 array containing 2D locations for the ground truth upper body joints. Row 1 are x values and Row 2 are y values. Columns are formatted from left to right as: Head, Right wrist, Left wrist, Right elbow, Left elbow, Right shoulder and Left shoulder (Person centric).
-            #3.frameids = 1 by 100 array containing the frame indicies which were annotated.
-            #4.label_names - cell array of strings for corresponding body joint labels
-            #5.scale - value the video should be scaled by
-            #6.? - 1 by 4 array giving the crop bounding box [topx topy botx boty] from the original video (MAYBE)
-            #7.origRes - 1 by 2 array [height,width] resolution of original video
-            #8.isYouTubeSubset - boolean, true if video belongs to the YouTube Subset dataset
-            image_dir = a[1][0]
+        for index, a_raw in enumerate(anno):
+            a = a_raw
+            #bbcpose =
+            #1x92 struct array with fields:
+            #    0.videoName               - original video name
+            #    1.type                    - train/test/val
+            #    2.source                  - which annotation method has been used
+            #    3.train_frames    - train frame numbers
+            #    4.train_joints    - training joints
+            #    5.test_frames             - manual ground truth frames (if any -- only for test frames)
+            #    6.test_joints             - manual ground truth joints (if any -- only for test frames)
+            image_dir = str(index+1)
             
-            key_points_ = np.transpose(a[2], (2, 1, 0))#[2,7,100]->[100,7,2]
+            if not self.test_mode:#train
+                #if a[1][0] == 'train':
+                key_points_ = np.transpose(a[4], (2, 1, 0))#[2,7,N]->[N,7,2]
+                target_frames = a[3][0]
+            else:#testval
+                if a[1][0] in ['val','test']:
+                    key_points_ = np.transpose(a[6], (2, 1, 0))#[2,7,N]->[N,7,2]
+                    target_frames = a[5][0]
+                else:
+                    key_points_ = np.array([])
+                    target_frames = np.array([])
 
-            for frame_i in range(100):
-                frame_name = a[3][0][frame_i]
-                image_file_name = "frame_"+(6-len(str(frame_name)))*"0"+str(frame_name)+".jpg"
+            for frame_i, frame_name in enumerate(target_frames):
+                image_file_name = str(int(frame_name))+".jpg"
                 image_name = osp.join(image_dir, image_file_name)                
 
                 key_points = key_points_[frame_i]
@@ -164,11 +160,11 @@ class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
                     'dataset': self.dataset_name,
                     'bbox_score': 1
                 })
-                print(str(bbox_id), " : ", image_file)
-                print(str(bbox_id), " : ", center)
-                print(str(bbox_id), " : ", scale)
-                print(str(bbox_id), " : ", joints_3d)
-                print(str(bbox_id), " : ", joints_3d_visible)
+                #print(str(bbox_id), " : ", image_file)
+                #print(str(bbox_id), " : ", center)
+                #print(str(bbox_id), " : ", scale)
+                #print(str(bbox_id), " : ", joints_3d)
+                #print(str(bbox_id), " : ", joints_3d_visible)
                 bbox_id = bbox_id + 1
         gt_db = sorted(gt_db, key=lambda x: x['bbox_id'])
 
@@ -234,33 +230,19 @@ class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
         SC_BIAS = 0.6
         threshold = 0.5
 
-        #gt_file = osp.join(osp.dirname(self.ann_file), 'mpii_gt_val.mat')
-        #gt_dict = loadmat(gt_file)
-        #jnt_missing = gt_dict['jnt_missing']
-        #pos_gt_src = gt_dict['pos_gt_src']
-        #headboxes_src = gt_dict['headboxes_src']
-
         mat = loadmat(self.ann_file)
-        mat_data = mat['data'][0]
+        mat_data = mat['bbcpose'][0][10:20]
         loc_array = []
-        for i in range(mat_data.shape[0]):
-            loc_array.append(np.transpose(mat_data[i][2], (2,1,0)))#50*[2,7,100]->50*[100,7,2]
-        loc_array = np.array(loc_array)#50*[100,7,2]->[50*100,7,2]
-        pos_gt_src = np.transpose(np.concatenate(loc_array,axis=0), (1,2,0))#[50*100,7,2]->[7,2,50*100]
+        for i in range(mat_data.shape[0]):# for test+val set
+            loc_array.append(np.transpose(mat_data[i][6], (2,1,0)))#10*[2,7,200]->10*[200,7,2]
+        loc_array = np.array(loc_array)#10*[200,7,2]->[10*200,7,2]
+        pos_gt_src = np.transpose(np.concatenate(loc_array,axis=0), (1,2,0))#[10*200,7,2]->[7,2,10*200]
 
         pos_pred_src = np.transpose(preds, [1, 2, 0])#[K,2,N]
 
         #jnt_visible = 1 - jnt_missing
-        print("pos_pred_src:",pos_pred_src)
-        print("pos_gt_src:",pos_gt_src)
         uv_error = pos_pred_src - pos_gt_src
         uv_err = np.linalg.norm(uv_error, axis=1)#[K,N]
-        #headsizes = headboxes_src[1, :, :] - headboxes_src[0, :, :]
-        #headsizes = np.linalg.norm(headsizes, axis=0)
-        #headsizes *= SC_BIAS
-        #scale = headsizes * np.ones((len(uv_err), 1), dtype=np.float32)
-        #scaled_uv_err = uv_err / scale
-        #scaled_uv_err = scaled_uv_err * jnt_visible
 
         num_joints = 7#np.sum(jnt_visible, axis=1)
         
@@ -268,14 +250,9 @@ class TopDownVGGDataset(Kpt2dSviewRgbImgTopDownDataset):
         brief_head_size = np.multiply(brief_head_box[0],brief_head_box[1])
         headsizes = brief_head_size*SC_BIAS
         scale = headsizes * np.ones((num_joints, 1), dtype=np.float32)
-        print(scale)
         scaled_uv_err = uv_err / scale
         less_than_threshold = (scaled_uv_err <= threshold)# * jnt_visible
-        print(less_than_threshold)
-        print(less_than_threshold.shape)
         PCKh = 100. * np.sum(less_than_threshold, axis=1) / pos_gt_src.shape[2]#[K]
-        print(PCKh)
-        print(PCKh.shape)
 
         # saved
         rng = np.arange(0, 0.5 + 0.01, 0.01)
