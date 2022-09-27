@@ -227,6 +227,7 @@ class TopDownMpiiDataset(Kpt2dSviewRgbImgTopDownDataset):
         headsizes = np.linalg.norm(headsizes, axis=0)
         headsizes *= SC_BIAS
         scale = headsizes * np.ones((len(uv_err), 1), dtype=np.float32)
+        
         scaled_uv_err = uv_err / scale
         scaled_uv_err = scaled_uv_err * jnt_visible
         jnt_count = np.sum(jnt_visible, axis=1)
