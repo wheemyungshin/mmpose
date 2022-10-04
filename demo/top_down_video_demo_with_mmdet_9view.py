@@ -299,10 +299,9 @@ def main():
                 if len(video_list_9view[7]) > 0:
                     img_9view[cut_h*2:cut_h*3, cut_w:cut_w*2, :img_9view.shape[2]] \
                      = video_list_9view[7][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
-                if len(video_list_9view[8]) > 0:s
+                if len(video_list_9view[8]) > 0:
                     img_9view[cut_h*2:cut_h*3, cut_w*2:cut_w*3, :img_9view.shape[2]] \
                      = video_list_9view[8][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
-                print(img_9view.dtype)
                 videoWriter.write(img_9view)
             videoWriter.release()
 
