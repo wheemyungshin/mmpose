@@ -78,12 +78,12 @@ def main():
         'information when using multi frames for inference in the pose'
         'estimation stage. Default: False.')
     parser.add_argument(
-        '--resize-h',
+        '--resize-w',
         type=int,
         default=0,
         help='Link thickness for visualization')
     parser.add_argument(
-        '--resize-w',
+        '--resize-h',
         type=int,
         default=0,
         help='Link thickness for visualization')
