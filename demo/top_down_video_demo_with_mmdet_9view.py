@@ -20,8 +20,8 @@ except (ImportError, ModuleNotFoundError):
 
 from collections import defaultdict
 
-def concat_tile(im_tiles):
-    return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_tiles])
+#def concat_tile(im_tiles):
+#    return cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in im_tiles])
 
 def main():
     """Visualize the demo video (support both single-frame and multi-frame).
@@ -115,7 +115,7 @@ def main():
 
     video_dict = defaultdict(list)
     for video_file in os.listdir(args.video_path):
-        if video_file.endswith('.MP4'):
+        if video_file.endswith(('.MP4','.mp4')):
             angle = int(video_file[-19])
             print(video_file)
             print(video_file[-17:-4])
@@ -128,22 +128,13 @@ def main():
 
 
     print(video_dict)
+
     for video_angles in video_dict.values():
         video_list_9view = [[], [], [],
                             [], [], [],
                             [], [], []]
         video = None
-                
         for angle_num, video_file in enumerate(video_angles):
-            if video_file in ['day1_6_0_1651319866967.MP4', 'day1_6_1_1651319866948.MP4', 'day1_6_2_1651319866948.MP4',
-             'day1_6_3_1651319866936.MP4', 'day1_6_5_1651319866907.MP4', 'day1_6_6_1651319866894.MP4',  'day1_6_7_1651319866907.MP4',  'day1_6_8_1651319866911.MP4',
-             'day3_4_0_1651485647700.MP4', 'day3_4_1_1651485647681.MP4', 'day3_4_2_1651485647675.MP4', 'day3_4_3_1651485647703.MP4', 'day3_4_4_1651485647653.MP4',
-              'day3_4_6_1651485647660.MP4', 'day3_4_7_1651485647661.MP4', 'day3_4_8_1651485647667.MP4', 'day3_truck_0_1651433449647.MP4', 
-              'day3_truck_1_1651433449646.MP4', 'day3_truck_2_1651433449663.MP4', 'day3_truck_3_1651433449647.MP4', 'day3_truck_4_1651433449647.MP4', 
-              'day3_truck_5_1651433449690.MP4', 'day3_truck_6_1651433449663.MP4', 'day3_truck_7_1651433449663.MP4', 'day3_truck_8_1651433449663.MP4',
-              'day3_5_0_1651489163197.MP4', 'day3_5_1_1651489163169.MP4', 'day3_5_2_1651489229917.MP4', 'day3_5_3_1651489768719.MP4',
-               'day3_5_5_1651489163193.MP4', 'day3_5_6_1651489163194.MP4', 'day3_5_7_1651489216574.MP4', 'day3_5_8_1651489229934.MP4']:
-                continue
             if video_file is not None:
                 video_path = os.path.join(args.video_path, video_file)
                 video = mmcv.VideoReader(video_path)
@@ -236,6 +227,8 @@ def main():
         else:
             os.makedirs(args.out_video_root, exist_ok=True)
             save_out_video = True
+        
+        
         if save_out_video and video is not None:
             fps = video.fps
             size = (video.width, video.height)
@@ -246,20 +239,53 @@ def main():
                 fps, size)
             
             for frame_index in range(len(video_list_9view[0])):
-                tmp_video_list_9view = []
-                for i in range(9):
-                    if len(video_list_9view[i])==0:
-                        tmp_video_list_9view.append(np.zeros([int(video.width*0.333), int(video.height*0.333), 3], dtype=np.uint8))
-                    else:
-                        tmp_video_list_9view.append(video_list_9view[i][frame_index])
+                #tmp_video_list_9view = []
+                #for i in range(9):
+                #    if len(video_list_9view[i])==0:
+                #        tmp_video_list_9view.append(np.zeros([int(video.width*0.333), int(video.height*0.333), 3], dtype=np.uint8))
+                #    else:
+                #        tmp_video_list_9view.append(video_list_9view[i][frame_index])
 
-                im_tiles = [[tmp_video_list_9view[0], tmp_video_list_9view[1], tmp_video_list_9view[2]],
-                            [tmp_video_list_9view[3], tmp_video_list_9view[4], tmp_video_list_9view[5]],
-                            [tmp_video_list_9view[6], tmp_video_list_9view[7], tmp_video_list_9view[8]]]
-                img_9view = np.zeros([video.width, video.height, 3], dtype=np.uint8)
-                img_9view_ = concat_tile(im_tiles)
-                img_9view[:img_9view_.shape[0],:img_9view_.shape[1],:img_9view_.shape[2]] = img_9view_
-                print(img_9view.dtype)
+                #im_tiles = [[tmp_video_list_9view[0], tmp_video_list_9view[1], tmp_video_list_9view[2]],
+                #            [tmp_video_list_9view[3], tmp_video_list_9view[4], tmp_video_list_9view[5]],
+                #            [tmp_video_list_9view[6], tmp_video_list_9view[7], tmp_video_list_9view[8]]]
+                #img_9view = np.zeros([video.width, video.height, 3], dtype=np.uint8)
+                #img_9v,iew_ = concat_tile(im_tiles)
+                #img_9view[:img_9view_.shape[0],:img_9view_.shape[1],:img_9view_.shape[2]] = img_9view_
+
+                img_9view = np.zeros([video.height, video.width, 3], dtype=np.uint8)
+
+                cut_h = int(img_9view.shape[0]*0.333)
+                cut_w = int(img_9view.shape[1]*0.333)
+                if len(video_list_9view[0]) > frame_index:
+                    img_9view[:cut_h, :cut_w, :img_9view.shape[2]] \
+                     = video_list_9view[0][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[1]) > frame_index:
+                    img_9view[:cut_h, cut_w:cut_w*2, :img_9view.shape[2]] \
+                     = video_list_9view[1][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[2]) > frame_index:
+                    img_9view[:cut_h, cut_w*2:cut_w*3, :img_9view.shape[2]] \
+                     = video_list_9view[2][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+
+                if len(video_list_9view[3]) > frame_index:
+                    img_9view[cut_h:cut_h*2, :cut_w, :img_9view.shape[2]] \
+                     = video_list_9view[3][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[4]) > frame_index:
+                    img_9view[cut_h:cut_h*2, cut_w:cut_w*2, :img_9view.shape[2]] \
+                     = video_list_9view[4][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[5]) > frame_index:
+                    img_9view[cut_h:cut_h*2, cut_w*2:cut_w*3, :img_9view.shape[2]] \
+                     = video_list_9view[5][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+
+                if len(video_list_9view[6]) > frame_index:
+                    img_9view[cut_h*2:cut_h*3, :cut_w, :img_9view.shape[2]] \
+                     = video_list_9view[6][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[7]) > frame_index:
+                    img_9view[cut_h*2:cut_h*3, cut_w:cut_w*2, :img_9view.shape[2]] \
+                     = video_list_9view[7][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
+                if len(video_list_9view[8]) > frame_index:
+                    img_9view[cut_h*2:cut_h*3, cut_w*2:cut_w*3, :img_9view.shape[2]] \
+                     = video_list_9view[8][frame_index][:cut_h, :cut_w, :img_9view.shape[2]]
                 videoWriter.write(img_9view)
             videoWriter.release()
 
