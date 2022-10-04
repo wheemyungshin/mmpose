@@ -77,6 +77,17 @@ def main():
         help='inference mode. If set to True, can not use future frame'
         'information when using multi frames for inference in the pose'
         'estimation stage. Default: False.')
+    parser.add_argument(
+        '--resize-h',
+        type=int,
+        default=0,
+        help='Link thickness for visualization')
+    parser.add_argument(
+        '--resize-w',
+        type=int,
+        default=0,
+        help='Link thickness for visualization')
+
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
 
@@ -129,7 +140,11 @@ def main():
 
         if save_out_video:
             fps = video.fps
-            size = (video.width, video.height)
+            if args.resize_h == 0 or args.resize_w == 0:
+                size = (video.width, video.height)
+            else:
+                size = (args.resize_w, args.resize_h)
+            
             print("SIZE: ", size)
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             videoWriter = cv2.VideoWriter(
@@ -151,6 +166,9 @@ def main():
 
         print('Running inference...')
         for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
+            if not (args.resize_h == 0 or args.resize_w == 0):
+                cur_frame = cv2.resize(cur_frame, (args.resize_w, args.resize_h), interpolation=cv2.INTER_AREA)
+
             # get the detection results of current frame
             # the resulting box is (x1, y1, x2, y2)
             mmdet_results = inference_detector(det_model, cur_frame)
