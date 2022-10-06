@@ -83,7 +83,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         self.use_gt_bbox = data_cfg['use_gt_bbox']
         self.bbox_file = data_cfg['bbox_file']
         self.det_bbox_thr = data_cfg.get('det_bbox_thr', 0.0)
-        self.min_bbox_thr = data_cfg.get('min_bbox_thr', 0.0)
+        self.min_bbox_thr = data_cfg.get['min_bbox_thr']
         self.use_nms = data_cfg.get('use_nms', True)
         self.soft_nms = data_cfg['soft_nms']
         self.nms_thr = data_cfg['nms_thr']
@@ -202,6 +202,9 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
                                   self.id2name[det_res['image_id']])
             box = det_res['bbox']
             score = det_res['score']
+
+            if box[2]*box[3] < self.min_bbox_thr:
+                continue
 
             if score < self.det_bbox_thr:
                 continue
