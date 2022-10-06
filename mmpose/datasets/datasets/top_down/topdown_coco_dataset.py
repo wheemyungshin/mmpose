@@ -133,10 +133,14 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
 
         # sanitize bboxes
         valid_objs = []
+        ignored_boxes = 0
         for obj in objs:
             if 'bbox' not in obj:
                 continue
             x, y, w, h = obj['bbox']
+            if w*h < 64:
+                ignored_boxes+=1
+                continue
             x1 = max(0, x)
             y1 = max(0, y)
             x2 = min(width - 1, x1 + max(0, w))
@@ -145,7 +149,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
                 obj['clean_bbox'] = [x1, y1, x2 - x1, y2 - y1]
                 valid_objs.append(obj)
         objs = valid_objs
-
+        print("Ignored boxes under threshold:", ignored_boxes)
 
         bbox_id = 0
         rec = []
@@ -200,9 +204,6 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
                                   self.id2name[det_res['image_id']])
             box = det_res['bbox']
             score = det_res['score']
-
-            print("BOX:", box)
-            print("SIZE:", box[2]*box[3])
 
             if score < self.det_bbox_thr:
                 continue
