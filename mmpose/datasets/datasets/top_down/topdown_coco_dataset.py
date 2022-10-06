@@ -146,6 +146,8 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
                 valid_objs.append(obj)
         objs = valid_objs
 
+        print("obj['bbox']:", obj['bbox'])
+
         bbox_id = 0
         rec = []
         for obj in objs:
@@ -199,6 +201,9 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
                                   self.id2name[det_res['image_id']])
             box = det_res['bbox']
             score = det_res['score']
+
+            print("BOX:", box)
+            print("SIZE:", box[2]*box[3])
 
             if score < self.det_bbox_thr:
                 continue
