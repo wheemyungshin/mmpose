@@ -80,13 +80,11 @@ def main():
     parser.add_argument(
         '--resize-w',
         type=int,
-        default=0,
-        help='Link thickness for visualization')
+        default=0)
     parser.add_argument(
         '--resize-h',
         type=int,
-        default=0,
-        help='Link thickness for visualization')
+        default=0)
 
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
@@ -151,6 +149,7 @@ def main():
                 os.path.join(args.out_video_root,
                             f'vis_{os.path.basename(video_path)}'), fourcc,
                 fps, size)
+        print("Loading...:", video_path)
 
         # frame index offsets for inference, used in multi-frame inference setting
         if args.use_multi_frames:
