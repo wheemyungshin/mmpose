@@ -36,7 +36,7 @@ model = dict(
         in_channels=3,
         extra=dict(
             stem=dict(stem_channels=32, out_channels=32, expand_ratio=1),
-            num_stages=3,
+            num_stages=2,
             stages_spec=dict(
                 num_modules=(2, 2),
                 num_branches=(2, 3),
