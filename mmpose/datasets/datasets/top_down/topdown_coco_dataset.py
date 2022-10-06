@@ -176,7 +176,6 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
             })
             bbox_id = bbox_id + 1
 
-        print(rec[0]['bbox'])
         return rec
 
     def _load_coco_person_detection_results(self):
