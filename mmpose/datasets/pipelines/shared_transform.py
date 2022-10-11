@@ -9,6 +9,7 @@ from mmcv.parallel import DataContainer as DC
 from mmcv.utils import build_from_cfg
 from numpy import random
 from torchvision.transforms import functional as F
+from torchvision.utils import save_image
 
 from ..builder import PIPELINES
 
@@ -179,8 +180,8 @@ class Collect:
         data[self.meta_name] = DC(meta, cpu_only=True)
 
         print(data)
-        print(data['img'][0].shape)
-        torchvision.util.save_image(data['img'][0], meta['image_file'][0])
+        print(data['img'].shape)
+        save_image(data['img'], "../vis_train_imgs/"+data['img_metas']['image_file'])
 
         return data
 
