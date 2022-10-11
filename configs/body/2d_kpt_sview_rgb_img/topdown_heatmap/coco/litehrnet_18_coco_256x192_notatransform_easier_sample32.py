@@ -90,8 +90,8 @@ train_pipeline = [
     dict(type='TopDownRandomFlip', flip_prob=0.5),
     dict(
         type='TopDownUpperBodyTransform',#as upper body appears often and lower body less, no lower body augmentation
-        num_joints_half_body=8,
-        prob_half_body=0.15),#half chance, as there is no lower body
+        num_joints_upper_body=8,
+        prob_upper_body=0.15),#half chance, as there is no lower body
     dict(
         type='TopDownGetRandomScaleRotation', rot_factor=10,#smaller rotation for less truncated boxes
         scale_factor=0.05),#smaller scaling for less truncated boxes
