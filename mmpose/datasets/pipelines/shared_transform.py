@@ -185,7 +185,7 @@ class Collect:
         upsample_weight = self.upscale(torch.unsqueeze(torch.from_numpy(data['target']*0.5),0))
         print(type(upsample_weight))
 
-        save_image(data['img']*0.5+upsample_weight, "../vis_train_imgs/"+meta['image_file'][-12:])
+        save_image(data['img']*0.5+upsample_weight[0], "../vis_train_imgs/"+meta['image_file'][-12:])
 
 
         return data
