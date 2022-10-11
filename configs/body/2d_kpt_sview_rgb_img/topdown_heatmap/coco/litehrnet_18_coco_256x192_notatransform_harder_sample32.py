@@ -77,24 +77,23 @@ data_cfg = dict(
     oks_thr=0.9,
     vis_thr=0.2,
     use_gt_bbox=False,
-    det_bbox_thr=0.0,
-    min_bbox_thr=1024,#set min box size
+    det_bbox_thr=0.0,#no min box size
     bbox_file='data/coco/person_detection_results/'
     'COCO_val2017_detections_AP_H_56_person.json',
 )
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='TopDownGetBboxCenterScale', padding=1.2),#reduce padding due to smaller shift
-    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.03, prob=0.3),#smaller shift for less truncated boxes
+    dict(type='TopDownGetBboxCenterScale', padding=1.4),#increase padding due to more shift
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.3, prob=0.3),#more shift for more truncated boxes
     dict(type='TopDownRandomFlip', flip_prob=0.5),
     dict(
-        type='TopDownUpperBodyTransform',#as upper body appears often and lower body less, no lower body augmentation
-        num_joints_upper_body=8,
-        prob_upper_body=0.15),#half chances, as there is no lower body
+        type='TopDownFourDirectionHalfBodyTransform',#left right division cases are further added
+        num_joints_half_body=8,
+        prob_half_body=0.5),#more chances, as there are more divisions
     dict(
-        type='TopDownGetRandomScaleRotation', rot_factor=10,#smaller rotation for less truncated boxes
-        scale_factor=0.05),#smaller scaling for less truncated boxes
+        type='TopDownGetRandomScaleRotation', rot_factor=40,#more rotation for more truncated boxes
+        scale_factor=0.35),#more scaling for more truncated boxes
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(
@@ -107,13 +106,13 @@ train_pipeline = [
         keys=['img', 'target', 'target_weight'],
         meta_keys=[
             'image_file', 'joints_3d', 'joints_3d_visible', 'center', 'scale',
-            'rotation', 'bbox_score', 'flip_pairs'],
-        min_points=3),#a box should contain at least 3 points. If not, all points become zero. (the box is ignored.)
+            'rotation', 'bbox_score', 'flip_pairs'
+        ]),#no min points
 ]
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='TopDownGetBboxCenterScale', padding=1.2),#reduce padding due to smaller shift
+    dict(type='TopDownGetBboxCenterScale', padding=1.4),#increase padding due to more shift
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

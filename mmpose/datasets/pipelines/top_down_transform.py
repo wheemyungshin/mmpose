@@ -142,7 +142,6 @@ class TopDownRandomFlip:
 
         return results
 
-
 @PIPELINES.register_module()
 class TopDownHalfBodyTransform:
     """Data augmentation with half-body transform. Keep only the upper body or
@@ -223,7 +222,6 @@ class TopDownHalfBodyTransform:
 
         return results
 
-
 @PIPELINES.register_module()
 class TopDownUpperBodyTransform:
     """Data augmentation with half-body transform. Keep only the upper body or
@@ -293,6 +291,103 @@ class TopDownUpperBodyTransform:
             if c_upper_body is not None and s_upper_body is not None:
                 results['center'] = c_upper_body
                 results['scale'] = s_upper_body
+
+        return results
+
+@PIPELINES.register_module()
+class TopDownFourDirectionHalfBodyTransform:
+    """Data augmentation with half-body transform. Keep only the upper body or
+    the lower body at random.
+
+    Required key: 'joints_3d', 'joints_3d_visible', and 'ann_info'.
+
+    Modifies key: 'scale' and 'center'.
+
+    Args:
+        num_joints_half_body (int): Threshold of performing
+            half-body transform. If the body has fewer number
+            of joints (< num_joints_half_body), ignore this step.
+        prob_half_body (float): Probability of half-body transform.
+    """
+
+    def __init__(self, num_joints_half_body=8, prob_half_body=0.3):
+        self.num_joints_half_body = num_joints_half_body
+        self.prob_half_body = prob_half_body
+
+    @staticmethod
+    def four_dir_half_body_transform(cfg, joints_3d, joints_3d_visible):
+        """Get center&scale for half-body transform."""
+        right_joints = []
+        left_joints = []
+        upper_joints = []
+        lower_joints = []
+        for joint_id in range(cfg['num_joints']):
+            if joints_3d_visible[joint_id][0] > 0:
+                #left right division
+                if joint_id != 0: # zero for nose
+                    if joint_id % 2 == 0: # even for right
+                        right_joints.append(joints_3d[joint_id])
+                    else: # odd for left
+                        left_joints.append(joints_3d[joint_id])
+                
+                #upper lower division
+                if joint_id in cfg['upper_body_ids']:
+                    upper_joints.append(joints_3d[joint_id])
+                else:
+                    lower_joints.append(joints_3d[joint_id])
+
+        if np.random.randn() < 0.5:
+            if np.random.randn() < 0.5 and len(right_joints) > 2:
+                selected_joints = right_joints
+            elif len(left_joints) > 2:
+                selected_joints = left_joints
+            else:
+                selected_joints = right_joints
+            if np.random.randn() < 0.5 and len(upper_joints) > 2:
+                selected_joints = upper_joints
+            elif len(lower_joints) > 2:
+                selected_joints = lower_joints
+            else:
+                selected_joints = upper_joints
+
+        if len(selected_joints) < 2:
+            return None, None
+
+        selected_joints = np.array(selected_joints, dtype=np.float32)
+        center = selected_joints.mean(axis=0)[:2]
+
+        left_top = np.amin(selected_joints, axis=0)
+
+        right_bottom = np.amax(selected_joints, axis=0)
+        
+        w = right_bottom[0] - left_top[0]
+        h = right_bottom[1] - left_top[1]
+
+        aspect_ratio = cfg['image_size'][0] / cfg['image_size'][1]
+
+        if w > aspect_ratio * h:
+            h = w * 1.0 / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+
+        scale = np.array([w / 200.0, h / 200.0], dtype=np.float32)
+        scale = scale * 1.5
+        return center, scale
+
+    def __call__(self, results):
+        """Perform data augmentation with half-body transform."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+
+        if (np.sum(joints_3d_visible[:, 0]) > self.num_joints_half_body
+                and np.random.rand() < self.prob_half_body):
+
+            c_half_body, s_half_body = self.half_body_transform(
+                results['ann_info'], joints_3d, joints_3d_visible)
+
+            if c_half_body is not None and s_half_body is not None:
+                results['center'] = c_half_body
+                results['scale'] = s_half_body
 
         return results
 
