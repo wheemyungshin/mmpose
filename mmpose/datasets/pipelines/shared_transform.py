@@ -146,6 +146,7 @@ class Collect:
         self.keys = keys
         self.meta_keys = meta_keys
         self.meta_name = meta_name
+        self.upscale = torch.nn.Upsample(scale_factor=4, mode='bilinear') 
 
     def __call__(self, results):
         """Performs the Collect formatting.
@@ -181,7 +182,7 @@ class Collect:
 
         print(data)
         print(data['target'].shape)
-        save_image(data['img']*0.5+data['target']*0.5, "../vis_train_imgs/"+meta['image_file'][-12:])
+        save_image(data['img']*0.5+self.upscale(data['target']*0.5), "../vis_train_imgs/"+meta['image_file'][-12:])
 
 
         return data
