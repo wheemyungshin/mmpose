@@ -181,7 +181,7 @@ class Collect:
 
         print(data)
         print(data['img'].shape)
-        save_image(data['img'], "../vis_train_imgs/"+data['img_metas']['image_file'])
+        save_image(data['img'], "../vis_train_imgs/"+meta['image_file'][-12:])
 
         return data
 
