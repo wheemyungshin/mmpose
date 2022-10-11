@@ -188,7 +188,8 @@ class Collect:
         vis_img = data['img']*0.5
         for i in range(17):
             vis_img[0] = vis_img[0] + upsample_weight[0][i]
-            vis_img[2] = vis_img[2] + 128 - upsample_weight[0][i]
+            vis_img[1] = vis_img[1] + upsample_weight[0][i]
+            vis_img[2] = vis_img[2] + upsample_weight[0][i]
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
 
         return data
