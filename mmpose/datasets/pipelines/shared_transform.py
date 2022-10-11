@@ -182,13 +182,13 @@ class Collect:
 
         print(data)
         print(data['target'].shape)
-        upsample_weight = self.upscale(torch.unsqueeze(torch.from_numpy(data['target']*0.5),0))
+        upsample_weight = self.upscale(torch.unsqueeze(torch.from_numpy(data['target']),0))
         print(type(upsample_weight))
-        vis_img = data['img']*0.5
+        vis_img = data['img']*0.4
         for i in range(17):
-            vis_img[0] = vis_img[0] + upsample_weight[0][i]
-            vis_img[1] = vis_img[1] + upsample_weight[0][i]
-            vis_img[2] = vis_img[2] + upsample_weight[0][i]
+            vis_img[0] = vis_img[0] + upsample_weight[0][i]*0.6
+            vis_img[1] = vis_img[1] + upsample_weight[0][i]*0.7
+            vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
 
         return data
