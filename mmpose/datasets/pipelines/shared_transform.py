@@ -180,8 +180,9 @@ class Collect:
         data[self.meta_name] = DC(meta, cpu_only=True)
 
         print(data)
-        print(data['img'].shape)
-        save_image(data['img'], "../vis_train_imgs/"+meta['image_file'][-12:])
+        print(data['target'].shape)
+        save_image(data['img']*0.5+data['target']*0.5, "../vis_train_imgs/"+meta['image_file'][-12:])
+
 
         return data
 
