@@ -142,10 +142,11 @@ class Collect:
           on `meta_keys`.
     """
 
-    def __init__(self, keys, meta_keys, meta_name='img_metas'):
+    def __init__(self, keys, meta_keys, min_points=0, meta_name='img_metas'):
         self.keys = keys
         self.meta_keys = meta_keys
         self.meta_name = meta_name
+        self.min_points = min_points
         self.upscale = torch.nn.Upsample(scale_factor=4, mode='bilinear') 
 
     def __call__(self, results):
@@ -180,6 +181,10 @@ class Collect:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
 
+        if np.sum(data['target_weight']) < self.min_points:
+            data['target_weight']*=0 
+
+        '''
         print(data)
         print(data['target'].shape)
         upsample_weight = self.upscale(torch.unsqueeze(torch.from_numpy(data['target']),0))
@@ -190,6 +195,11 @@ class Collect:
             vis_img[1] = vis_img[1] + upsample_weight[0][i]*0.7
             vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
+        '''
+        if np.sum(data['target_weight']) < self.min_points:
+            print(data['target_weight'])
+        if meta['scale'][0]*meta['scale'][1] < 0.15*0.15:
+            print(meta['scale'])
 
         return data
 

@@ -225,6 +225,78 @@ class TopDownHalfBodyTransform:
 
 
 @PIPELINES.register_module()
+class TopDownUpperBodyTransform:
+    """Data augmentation with half-body transform. Keep only the upper body or
+    the lower body at random.
+
+    Required key: 'joints_3d', 'joints_3d_visible', and 'ann_info'.
+
+    Modifies key: 'scale' and 'center'.
+
+    Args:
+        num_joints_half_body (int): Threshold of performing
+            half-body transform. If the body has fewer number
+            of joints (< num_joints_half_body), ignore this step.
+        prob_half_body (float): Probability of half-body transform.
+    """
+
+    def __init__(self, num_joints_upper_body=8, prob_upper_body=0.15):
+        self.num_joints_upper_body = num_joints_upper_body
+        self.prob_upper_body = prob_upper_body
+
+    @staticmethod
+    def upper_body_transform(cfg, joints_3d, joints_3d_visible):
+        """Get center&scale for half-body transform."""
+        upper_joints = []
+        for joint_id in range(cfg['num_joints']):
+            if joints_3d_visible[joint_id][0] > 0:
+                if joint_id in cfg['upper_body_ids']:
+                    upper_joints.append(joints_3d[joint_id])
+
+        if len(upper_joints) > 2:
+            selected_joints = upper_joints
+        else:
+            return None, None
+
+        selected_joints = np.array(selected_joints, dtype=np.float32)
+        center = selected_joints.mean(axis=0)[:2]
+
+        left_top = np.amin(selected_joints, axis=0)
+
+        right_bottom = np.amax(selected_joints, axis=0)
+
+        w = right_bottom[0] - left_top[0]
+        h = right_bottom[1] - left_top[1]
+
+        aspect_ratio = cfg['image_size'][0] / cfg['image_size'][1]
+
+        if w > aspect_ratio * h:
+            h = w * 1.0 / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+
+        scale = np.array([w / 200.0, h / 200.0], dtype=np.float32)
+        scale = scale * 1.5
+        return center, scale
+
+    def __call__(self, results):
+        """Perform data augmentation with half-body transform."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+
+        if (np.sum(joints_3d_visible[:, 0]) > self.num_joints_upper_body
+                and np.random.rand() < self.prob_upper_body):
+
+            c_upper_body, s_upper_body = self.upper_body_transform(
+                results['ann_info'], joints_3d, joints_3d_visible)
+
+            if c_upper_body is not None and s_upper_body is not None:
+                results['center'] = c_upper_body
+                results['scale'] = s_upper_body
+
+        return results
+
+@PIPELINES.register_module()
 class TopDownGetRandomScaleRotation:
     """Data augmentation with random scaling & rotating.
 
