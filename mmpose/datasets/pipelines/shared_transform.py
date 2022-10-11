@@ -196,7 +196,7 @@ class Collect:
             vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
         '''
-        if np.sum(data['target_weight']) < self.min_points:
+        if 0 < np.sum(data['target_weight']) < self.min_points:
             print(data['target_weight'])
         if meta['scale'][0]*meta['scale'][1] < 0.15*0.15:
             print(meta['scale'])
