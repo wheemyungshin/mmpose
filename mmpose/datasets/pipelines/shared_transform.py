@@ -178,6 +178,10 @@ class Collect:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
 
+        print(data)
+        print(data['img'][0].shape)
+        torchvision.util.save_image(data['img'][0], meta['image_file'][0])
+
         return data
 
     def __repr__(self):
