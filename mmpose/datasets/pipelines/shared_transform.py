@@ -181,8 +181,10 @@ class Collect:
             meta['bbox_id'] = results['bbox_id']
         data[self.meta_name] = DC(meta, cpu_only=True)
 
-        if np.sum(data['target_weight']) < self.min_points:
-            data['target_weight']*=0 
+
+        if 'target_weight' in self.keys:
+            if np.sum(data['target_weight']) < self.min_points:
+                data['target_weight']*=0 
 
         '''
         print(data)
@@ -196,11 +198,7 @@ class Collect:
             vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
         '''
-        if 0 < np.sum(data['target_weight']) < self.min_points:
-            print(data['target_weight'])
-        if meta['scale'][0]*meta['scale'][1] < 0.15*0.15:
-            print(meta['scale'])
-
+        
         return data
 
     def __repr__(self):

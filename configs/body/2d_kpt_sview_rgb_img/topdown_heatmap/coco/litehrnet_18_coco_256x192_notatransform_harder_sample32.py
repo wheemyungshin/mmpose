@@ -90,7 +90,7 @@ train_pipeline = [
     dict(
         type='TopDownFourDirectionHalfBodyTransform',#left right division cases are further added
         num_joints_half_body=8,
-        prob_half_body=0.5),#more chances, as there are more divisions
+        prob_half_body=0.6),#more chances, as there are more divisions
     dict(
         type='TopDownGetRandomScaleRotation', rot_factor=40,#more rotation for more truncated boxes
         scale_factor=0.35),#more scaling for more truncated boxes
