@@ -343,6 +343,7 @@ class TopDownFourDirectionHalfBodyTransform:
                 selected_joints = left_joints
             else:
                 selected_joints = right_joints
+        else:
             if np.random.randn() < 0.5 and len(upper_joints) > 2:
                 selected_joints = upper_joints
             elif len(lower_joints) > 2:
