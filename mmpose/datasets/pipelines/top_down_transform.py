@@ -382,7 +382,7 @@ class TopDownFourDirectionHalfBodyTransform:
         if (np.sum(joints_3d_visible[:, 0]) > self.num_joints_half_body
                 and np.random.rand() < self.prob_half_body):
 
-            c_half_body, s_half_body = self.half_body_transform(
+            c_half_body, s_half_body = self.four_dir_half_body_transform(
                 results['ann_info'], joints_3d, joints_3d_visible)
 
             if c_half_body is not None and s_half_body is not None:
