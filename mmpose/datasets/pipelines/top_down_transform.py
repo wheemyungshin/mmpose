@@ -501,6 +501,89 @@ class TopDownAffine:
 
         return results
 
+@PIPELINES.register_module()
+class TopDownGenerateSimCCTarget:
+    def __init__(self,
+                 sigma=2,
+                 split_ratio=None):
+        self.sigma = sigma
+        self.split_ratio = split_ratio
+
+    def generate_sa_simdr(self, cfg, joints, joints_vis):
+        '''
+        :param joints:  [num_joints, 3]
+        :param joints_vis: [num_joints, 3]
+        :return: target, target_weight(1: visible, 0: invisible)
+        '''
+        target_weight = np.ones((cfg['num_joints'], 1), dtype=np.float32)
+        target_weight[:, 0] = joints_vis[:, 0]
+
+        target_x = np.zeros((cfg['num_joints'],
+                            int(cfg['heatmap_size'][0])),
+                            dtype=np.float32)
+        target_y = np.zeros((cfg['num_joints'],
+                            int(cfg['heatmap_size'][1])),
+                            dtype=np.float32)                              
+
+        tmp_size = self.sigma * 3
+        for joint_id in range(cfg['num_joints']):
+            target_weight[joint_id] = \
+                self.adjust_target_weight(cfg, joints[joint_id], target_weight[joint_id], tmp_size)
+            if target_weight[joint_id] == 0:
+                continue
+
+            mu_x = joints[joint_id][0] * self.split_ratio
+            mu_y = joints[joint_id][1] * self.split_ratio
+            
+            x = np.arange(0, int(cfg['heatmap_size'][0]), 1, np.float32)
+            y = np.arange(0, int(cfg['heatmap_size'][1]), 1, np.float32)
+
+            v = target_weight[joint_id]
+            if v > 0.5:
+                target_x[joint_id] = (np.exp(- ((x - mu_x) ** 2) / (2 * self.sigma ** 2)))#/(self.sigma*np.sqrt(np.pi*2))
+                target_y[joint_id] = (np.exp(- ((y - mu_y) ** 2) / (2 * self.sigma ** 2)))#/(self.sigma*np.sqrt(np.pi*2))
+
+
+        target = [target_x, target_y]
+        '''
+        print("target_x: ", target_x)
+        print("target_y: ", target_y)
+        print("target_weight: ", target_weight)
+        print("target_x: ", target_x.shape)
+        print("target_y: ", target_y.shape)
+        print("target_weight: ", target_weight.shape)
+        print("target_weight_sum: ", target_weight.sum())
+        '''
+        return target, target_weight  
+
+    def adjust_target_weight(self, cfg, joint, target_weight, tmp_size):
+        # feat_stride = self.image_size / self.heatmap_size
+        mu_x = joint[0]
+        mu_y = joint[1]
+        # Check that any part of the gaussian is in-bounds
+        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
+        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
+        if ul[0] >= (cfg['heatmap_size'][0]) or ul[1] >= cfg['heatmap_size'][1] \
+                or br[0] < 0 or br[1] < 0:
+            # If not, just return the image as is
+            target_weight = 0
+
+        return target_weight
+
+    def __call__(self, results):
+        """Generate the target heatmap."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+        cfg = results['ann_info']
+
+        target, target_weight = self.generate_sa_simdr(
+            cfg, joints_3d, joints_3d_visible)
+
+        results['target'] = target
+        results['target_weight'] = target_weight
+
+        return results
+
 
 @PIPELINES.register_module()
 class TopDownGenerateTarget:

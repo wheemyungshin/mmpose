@@ -4,6 +4,9 @@ _base_ = [
 ]
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 
+image_size=[192, 256]
+split_ratio=2
+
 optimizer = dict(
     type='Adam',
     lr=5e-4,
@@ -16,7 +19,7 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=0.001,
     step=[170, 200])
-total_epochs = 240
+total_epochs = 210
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
@@ -52,12 +55,14 @@ model = dict(
             with_head=True,
         )),
     keypoint_head=dict(
-        type='TopdownHeatmapSimpleHead',
+        type='TopdownHeatmapSimCCHead',
         in_channels=40,
         out_channels=channel_cfg['num_output_channels'],
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1, ),
-        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
+        loss_keypoint=dict(type='KLDiscretLossSimCC', use_target_weight=True),
+        output_size=[48, 64],
+        heatmap_size=image_size*split_ratio),
     train_cfg=dict(),
     test_cfg=dict(
         flip_test=True,
@@ -66,8 +71,8 @@ model = dict(
         modulate_kernel=11))
 
 data_cfg = dict(
-    image_size=[192, 256],
-    heatmap_size=[48, 64],
+    image_size=image_size,
+    heatmap_size=image_size*split_ratio,
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],
@@ -77,42 +82,42 @@ data_cfg = dict(
     oks_thr=0.9,
     vis_thr=0.2,
     use_gt_bbox=False,
-    det_bbox_thr=0.0,#no min box size
+    det_bbox_thr=0.0,
     bbox_file='data/coco/person_detection_results/'
     'COCO_val2017_detections_AP_H_56_person.json',
 )
 
 train_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='TopDownGetBboxCenterScale', padding=1.4),#increase padding due to more shift
-    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.3, prob=0.3),#more shift for more truncated boxes
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
+    dict(type='TopDownRandomShiftBboxCenter', shift_factor=0.16, prob=0.3),
     dict(type='TopDownRandomFlip', flip_prob=0.5),
     dict(
-        type='TopDownFourDirectionHalfBodyTransform',#left right division cases are further added
+        type='TopDownHalfBodyTransform',
         num_joints_half_body=8,
-        prob_half_body=0.6),#more chances, as there are more divisions
+        prob_half_body=0.3),
     dict(
-        type='TopDownGetRandomScaleRotation', rot_factor=40,#more rotation for more truncated boxes
-        scale_factor=0.35),#more scaling for more truncated boxes
+        type='TopDownGetRandomScaleRotation', rot_factor=30,
+        scale_factor=0.25),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(
         type='NormalizeTensor',
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]),
-    dict(type='TopDownGenerateTarget', sigma=2),
+    dict(type='TopDownGenerateSimCCTarget', sigma=4, split_ratio=2),
     dict(
         type='Collect',
         keys=['img', 'target', 'target_weight'],
         meta_keys=[
             'image_file', 'joints_3d', 'joints_3d_visible', 'center', 'scale',
             'rotation', 'bbox_score', 'flip_pairs'
-        ]),#no min points
+        ]),
 ]
 
 val_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='TopDownGetBboxCenterScale', padding=1.4),#increase padding due to more shift
+    dict(type='TopDownGetBboxCenterScale', padding=1.25),
     dict(type='TopDownAffine'),
     dict(type='ToTensor'),
     dict(

@@ -133,6 +133,57 @@ def _get_max_preds_3d(heatmaps):
     return preds, maxvals
 
 
+def pose_pck_accuracy_simcc(output, target, mask, thr=0.05, normalize=None):
+    """Calculate the pose accuracy of PCK for each individual keypoint and the
+    averaged accuracy across all keypoints from heatmaps.
+
+    Note:
+        PCK metric measures accuracy of the localization of the body joints.
+        The distances between predicted positions and the ground-truth ones
+        are typically normalized by the bounding box size.
+        The threshold (thr) of the normalized distance is commonly set
+        as 0.05, 0.1 or 0.2 etc.
+
+        - batch_size: N
+        - num_keypoints: K
+        - heatmap height: H
+        - heatmap width: W
+
+    Args:
+        output ([np.ndarray[N, K, W], np.ndarray[N, K, H]]).
+        target ([np.ndarray[N, K, W], np.ndarray[N, K, H]]).
+        mask (np.ndarray[N, K]): Visibility of the target. False for invisible
+            joints, and True for visible. Invisible joints will be ignored for
+            accuracy calculation.
+        thr (float): Threshold of PCK calculation. Default 0.05.
+        normalize (np.ndarray[N, 2]): Normalization factor for H&W.
+
+    Returns:
+        tuple: A tuple containing keypoint accuracy.
+
+        - np.ndarray[K]: Accuracy of each keypoint.
+        - float: Averaged accuracy across all keypoints.
+        - int: Number of valid keypoints.
+    """
+    N, K, W = output[0].shape
+    H = output[1].shape[-1]
+    if K == 0:
+        return None, 0, 0
+    if normalize is None:
+        normalize = np.tile(np.array([[H, W]]), (N, 1))
+
+    pred_x = np.argmax(output[0], axis=2, keepdims=True)
+    pred_y = np.argmax(output[1], axis=2, keepdims=True)
+
+    gt_x = np.argmax(target[0], axis=2, keepdims=True)
+    gt_y = np.argmax(target[1], axis=2, keepdims=True)
+
+    pred = np.concatenate((pred_x, pred_y), axis=2)
+    gt = np.concatenate((gt_x, gt_y), axis=2)
+
+    return keypoint_pck_accuracy(pred, gt, mask, thr, normalize)
+
+
 def pose_pck_accuracy(output, target, mask, thr=0.05, normalize=None):
     """Calculate the pose accuracy of PCK for each individual keypoint and the
     averaged accuracy across all keypoints from heatmaps.
@@ -467,6 +518,128 @@ def keypoints_from_regression(regression_preds, center, scale, img_size):
     # Transform back to the image
     for i in range(N):
         preds[i] = transform_preds(preds[i], center[i], scale[i], img_size)
+
+    return preds, maxvals
+
+
+def keypoints_from_simcc(outputs,
+                        center,
+                        scale,
+                        unbiased=False,
+                        post_process='default',
+                        kernel=11,
+                        valid_radius_factor=0.0546875,
+                        use_udp=False,
+                        target_type='GaussianHeatmap'):
+    """Get final keypoint predictions from heatmaps and transform them back to
+    the image.
+
+    Note:
+        - batch size: N
+        - num keypoints: K
+        - heatmap height: H
+        - heatmap width: W
+
+    Args:
+        heatmaps ([np.ndarray[N, K, W], np.ndarray[N, K, H]])
+        center (np.ndarray[N, 2]): Center of the bounding box (x, y).
+        scale (np.ndarray[N, 2]): Scale of the bounding box
+            wrt height/width.
+        post_process (str/None): Choice of methods to post-process
+            heatmaps. Currently supported: None, 'default', 'unbiased',
+            'megvii'.
+        unbiased (bool): Option to use unbiased decoding. Mutually
+            exclusive with megvii.
+            Note: this arg is deprecated and unbiased=True can be replaced
+            by post_process='unbiased'
+            Paper ref: Zhang et al. Distribution-Aware Coordinate
+            Representation for Human Pose Estimation (CVPR 2020).
+        kernel (int): Gaussian kernel size (K) for modulation, which should
+            match the heatmap gaussian sigma when training.
+            K=17 for sigma=3 and k=11 for sigma=2.
+        valid_radius_factor (float): The radius factor of the positive area
+            in classification heatmap for UDP.
+        use_udp (bool): Use unbiased data processing.
+        target_type (str): 'GaussianHeatmap' or 'CombinedTarget'.
+            GaussianHeatmap: Classification target with gaussian distribution.
+            CombinedTarget: The combination of classification target
+            (response map) and regression target (offset map).
+            Paper ref: Huang et al. The Devil is in the Details: Delving into
+            Unbiased Data Processing for Human Pose Estimation (CVPR 2020).
+
+    Returns:
+        tuple: A tuple containing keypoint predictions and scores.
+
+        - preds (np.ndarray[N, K, 2]): Predicted keypoint location in images.
+        - maxvals (np.ndarray[N, K, 1]): Scores (confidence) of the keypoints.
+    """
+    output_x = outputs[0].copy()
+    output_y = outputs[1].copy()
+
+    if post_process == 'megvii':
+        assert post_process == 'megvii'
+    # detect conflicts
+    if unbiased:
+        assert post_process not in [False, None]
+    if post_process in ['unbiased']:
+        assert kernel > 0
+        
+    # normalize configs
+    if post_process is False:
+        warnings.warn(
+            'post_process=False is deprecated, '
+            'please use post_process=None instead', DeprecationWarning)
+        post_process = None
+    elif post_process is True:
+        if unbiased is True:
+            warnings.warn(
+                'post_process=True, unbiased=True is deprecated,'
+                " please use post_process='unbiased' instead",
+                DeprecationWarning)
+            post_process = 'unbiased'
+        else:
+            warnings.warn(
+                'post_process=True, unbiased=False is deprecated, '
+                "please use post_process='default' instead",
+                DeprecationWarning)
+            post_process = 'default'
+    elif post_process == 'default':
+        if unbiased is True:
+            warnings.warn(
+                'unbiased=True is deprecated, please use '
+                "post_process='unbiased' instead", DeprecationWarning)
+            post_process = 'unbiased'
+
+    N, K, W = output_x.shape
+    H = output_y.shape[-1]
+
+    if use_udp:
+        raise ValueError("UDP is not implemented yet for SimCC")
+    else:
+        pred_x = np.argmax(output_x, axis=2, keepdims=True).astype(np.float64)
+        pred_y = np.argmax(output_y, axis=2, keepdims=True).astype(np.float64)
+        maxval_x = np.amax(output_x, axis=2, keepdims=True).astype(np.float64)
+        maxval_y = np.amax(output_y, axis=2, keepdims=True).astype(np.float64)
+
+        if post_process == 'unbiased':  # alleviate biased coordinate
+            # apply Gaussian distribution modulation.
+            raise ValueError("Unbiased processing is not implemented yet for SimCC")
+        elif post_process is not None:
+            # add +/-0.25 shift to the predicted locations for higher acc.
+            for n in range(N):
+                for k in range(K):
+                    px = int(pred_x[n][k])
+                    py = int(pred_y[n][k])
+                    if 1 < px < W - 1 and 1 < py < H - 1:
+                        pred_x[n][k][0] += np.sign(output_x[n][k][px + 1] - output_x[n][k][px - 1]) * .25
+                        pred_y[n][k][0] += np.sign(output_y[n][k][py + 1] - output_y[n][k][py - 1]) * .25
+
+    # Transform back to the image
+    preds =  np.concatenate((pred_x, pred_y), axis=2)
+    maxvals =  np.mean(np.concatenate((maxval_x, maxval_y), axis=2), axis=2, keepdims=True)
+    for i in range(N):
+        preds[i] = transform_preds(
+            preds[i], center[i], scale[i], [W, H], use_udp=use_udp)
 
     return preds, maxvals
 

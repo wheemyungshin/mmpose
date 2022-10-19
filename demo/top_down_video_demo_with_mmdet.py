@@ -17,6 +17,8 @@ try:
 except (ImportError, ModuleNotFoundError):
     has_mmdet = False
 
+import numpy as np
+
 
 def main():
     """Visualize the demo video (support both single-frame and multi-frame).
@@ -52,7 +54,17 @@ def main():
         default=0.3,
         help='Bounding box score threshold')
     parser.add_argument(
+        '--min-bbox-size',
+        type=float,
+        default=0,
+        help='Bounding box size threshold')
+    parser.add_argument(
         '--kpt-thr', type=float, default=0.3, help='Keypoint score threshold')
+    parser.add_argument(
+        '--min-points',
+        type=int,
+        default=0,
+        help='Minimum predicted pose joints threshold')
     parser.add_argument(
         '--radius',
         type=int,
@@ -175,6 +187,12 @@ def main():
             # keep the person class bounding boxes.
             person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
 
+            filtered_person_results = []
+            for person_result in person_results:
+                person_size = (person_result['bbox'][2]-person_result['bbox'][0])*(person_result['bbox'][3]-person_result['bbox'][1])
+                if person_size >= args.min_bbox_size:
+                    filtered_person_results.append(person_result)
+                
             if args.use_multi_frames:
                 frames = collect_multi_frames(video, frame_id, indices,
                                             args.online)
@@ -183,7 +201,7 @@ def main():
             pose_results, returned_outputs = inference_top_down_pose_model(
                 pose_model,
                 frames if args.use_multi_frames else cur_frame,
-                person_results,
+                filtered_person_results,
                 bbox_thr=args.bbox_thr,
                 format='xyxy',
                 dataset=dataset,
@@ -191,11 +209,16 @@ def main():
                 return_heatmap=return_heatmap,
                 outputs=output_layer_names)
 
+            new_pose_results = []
+            for pose_result in pose_results:
+                if np.sum(pose_result['keypoints'][:,-1] > args.kpt_thr) >= args.min_points:
+                    new_pose_results.append(pose_result)
+
             # show the results
             vis_frame = vis_pose_result(
                 pose_model,
                 cur_frame,
-                pose_results,
+                new_pose_results,
                 dataset=dataset,
                 dataset_info=dataset_info,
                 kpt_score_thr=args.kpt_thr,

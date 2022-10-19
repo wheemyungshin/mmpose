@@ -147,7 +147,6 @@ class Collect:
         self.meta_keys = meta_keys
         self.meta_name = meta_name
         self.min_points = min_points
-        self.upscale = torch.nn.Upsample(scale_factor=4, mode='bilinear') 
 
     def __call__(self, results):
         """Performs the Collect formatting.
@@ -187,18 +186,37 @@ class Collect:
                 data['target_weight']*=0 
 
         '''
-        print(data)
-        print(data['target'].shape)
-        upsample_weight = self.upscale(torch.unsqueeze(torch.from_numpy(data['target']),0))
-        print(type(upsample_weight))
+        upscale = torch.nn.Upsample(scale_factor=4, mode='bilinear') 
+        upsample_weight = upscale(torch.unsqueeze(torch.from_numpy(data['target']),0))
         vis_img = data['img']*0.4
         for i in range(17):
+            print("upsample_weight: ", upsample_weight.max())
+            print("upsample_weight: ", upsample_weight.shape)
             vis_img[0] = vis_img[0] + upsample_weight[0][i]*0.6
             vis_img[1] = vis_img[1] + upsample_weight[0][i]*0.7
             vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
         '''
         
+        '''
+        K, W = data['target'][0].shape
+        H = data['target'][1].shape[-1]
+        vis_mask = np.zeros([K, H, W])
+        for y in range(H):
+            for x in range(W):
+                vis_mask[:, y, x] = vis_mask[:, y, x] + (data['target'][1][:, y] + data['target'][0][:, x])/2
+        if vis_mask.sum() > 0:
+            upscale = torch.nn.Upsample(scale_factor=0.5, mode='bilinear') 
+            upsample_weight = upscale(torch.unsqueeze(torch.from_numpy(vis_mask),0))
+            vis_img = data['img']*0.4
+            print("upsample_weight: ", upsample_weight.max())
+            print("upsample_weight: ", upsample_weight.shape)
+            for i in range(17):
+                vis_img[0] = vis_img[0] + upsample_weight[0][i]*0.6
+                vis_img[1] = vis_img[1] + upsample_weight[0][i]*0.7
+                vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
+            save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
+        '''
         return data
 
     def __repr__(self):
