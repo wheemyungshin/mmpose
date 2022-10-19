@@ -170,24 +170,6 @@ def main():
     eval_config = cfg.get('evaluation', {})
     eval_config = merge_configs(eval_config, dict(metric=args.eval))
 
-    '''
-    print("outputs:", outputs)
-    print("outputs:", len(outputs))
-    dataset_info = cfg.data['test'].get('dataset_info', None)
-    out_file = 
-    '''
-
-    vis_frame = vis_pose_result(
-        model,
-        cur_frame,
-        outputs,
-        dataset=dataset,
-        dataset_info=dataset_info,
-        kpt_score_thr=0.2,
-        radius=4,
-        thickness=1,
-        show=False)
-
     if rank == 0:
         if args.out:
             print(f'\nwriting results to {args.out}')

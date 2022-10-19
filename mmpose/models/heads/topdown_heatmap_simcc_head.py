@@ -409,7 +409,8 @@ class TopdownHeatmapSimCCHead(TopdownHeatmapBaseHead):
             valid_radius_factor=self.test_cfg.get('valid_radius_factor',
                                                   0.0546875),
             use_udp=self.test_cfg.get('use_udp', False),
-            target_type=self.test_cfg.get('target_type', 'GaussianHeatmap'))
+            target_type=self.test_cfg.get('target_type', 'GaussianHeatmap'),
+            split_ratio=self.test_cfg.get('split_ratio', None))
 
         all_preds = np.zeros((batch_size, preds.shape[1], 3), dtype=np.float32)
         all_boxes = np.zeros((batch_size, 6), dtype=np.float32)
