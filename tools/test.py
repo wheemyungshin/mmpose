@@ -11,7 +11,7 @@ from mmcv.cnn import fuse_conv_bn
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
-from mmpose.apis import multi_gpu_test, single_gpu_test
+from mmpose.apis import multi_gpu_test, single_gpu_test, vis_pose_result
 from mmpose.datasets import build_dataloader, build_dataset
 from mmpose.models import build_posenet
 from mmpose.utils import setup_multi_processes
@@ -169,6 +169,24 @@ def main():
     rank, _ = get_dist_info()
     eval_config = cfg.get('evaluation', {})
     eval_config = merge_configs(eval_config, dict(metric=args.eval))
+
+    '''
+    print("outputs:", outputs)
+    print("outputs:", len(outputs))
+    dataset_info = cfg.data['test'].get('dataset_info', None)
+    out_file = 
+    '''
+
+    vis_frame = vis_pose_result(
+        model,
+        cur_frame,
+        outputs,
+        dataset=dataset,
+        dataset_info=dataset_info,
+        kpt_score_thr=0.2,
+        radius=4,
+        thickness=1,
+        show=False)
 
     if rank == 0:
         if args.out:

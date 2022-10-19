@@ -177,6 +177,26 @@ class TopDown(BasePose):
         if self.with_keypoint:
             output_heatmap = self.keypoint_head.inference_model(
                 features, flip_pairs=None)
+        
+        '''
+        if isinstance(output_heatmap, list):
+            print("output_heatmap: ", output_heatmap[0][0])
+            print("output_heatmap: ", output_heatmap[1][0])
+            print("output_heatmap: ", output_heatmap[0][0].min())
+            print("output_heatmap: ", output_heatmap[0][0].max())
+            print("output_heatmap: ", output_heatmap[0][0].shape)
+            print("output_heatmap: ", output_heatmap[1][0].min())
+            print("output_heatmap: ", output_heatmap[1][0].max())
+            print("output_heatmap: ", output_heatmap[1][0].shape)
+            print("output_heatmap: ", output_heatmap[0][0].shape)
+            print("output_heatmap: ", output_heatmap[1][0].shape)
+        else:
+            print("output_heatmap: ", output_heatmap[0])
+            print("output_heatmap: ", output_heatmap[0].min())
+            print("output_heatmap: ", output_heatmap[0].max())
+            print("output_heatmap: ", output_heatmap[0].shape)
+        '''
+        
 
         if self.test_cfg.get('flip_test', True):
             img_flipped = img.flip(3)
@@ -189,7 +209,11 @@ class TopDown(BasePose):
                 output_heatmap = (output_heatmap + output_flipped_heatmap)
                 if self.test_cfg.get('regression_flip_shift', False):
                     output_heatmap[..., 0] -= 1.0 / img_width
-                output_heatmap = output_heatmap / 2
+
+                if not isinstance(output_heatmap, list):
+                    output_heatmap = output_heatmap / 2
+                else:
+                    output_heatmap = [output_heatmap[0] / 2, output_heatmap[1] / 2]
 
         if self.with_keypoint:
             keypoint_result = self.keypoint_head.decode(
@@ -298,7 +322,7 @@ class TopDown(BasePose):
                 show=False)
 
         if pose_result:
-            imshow_keypoints(img, pose_result, skeleton, kpt_score_thr,
+            img = imshow_keypoints(img, pose_result, skeleton, kpt_score_thr,
                              pose_kpt_color, pose_link_color, radius,
                              thickness)
 
