@@ -176,27 +176,7 @@ class TopDown(BasePose):
             features = self.neck(features)
         if self.with_keypoint:
             output_heatmap = self.keypoint_head.inference_model(
-                features, flip_pairs=None)
-        
-        '''
-        if isinstance(output_heatmap, list):
-            print("output_heatmap: ", output_heatmap[0][0])
-            print("output_heatmap: ", output_heatmap[1][0])
-            print("output_heatmap: ", output_heatmap[0][0].min())
-            print("output_heatmap: ", output_heatmap[0][0].max())
-            print("output_heatmap: ", output_heatmap[0][0].shape)
-            print("output_heatmap: ", output_heatmap[1][0].min())
-            print("output_heatmap: ", output_heatmap[1][0].max())
-            print("output_heatmap: ", output_heatmap[1][0].shape)
-            print("output_heatmap: ", output_heatmap[0][0].shape)
-            print("output_heatmap: ", output_heatmap[1][0].shape)
-        else:
-            print("output_heatmap: ", output_heatmap[0])
-            print("output_heatmap: ", output_heatmap[0].min())
-            print("output_heatmap: ", output_heatmap[0].max())
-            print("output_heatmap: ", output_heatmap[0].shape)
-        '''
-        
+                features, flip_pairs=None)        
 
         if self.test_cfg.get('flip_test', True):
             img_flipped = img.flip(3)

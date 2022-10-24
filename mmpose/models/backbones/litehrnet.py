@@ -15,7 +15,8 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
-from .utils import channel_shuffle, load_checkpoint
+from .utils import channel_shuffle, load_checkpoint, InvertedResidual
+
 
 
 class SpatialWeighting(nn.Module):
@@ -558,8 +559,10 @@ class LiteHRModule(nn.Module):
             self.layers = self._make_weighting_blocks(num_blocks, reduce_ratio)
         elif self.module_type.upper() == 'NAIVE':
             self.layers = self._make_naive_branches(num_branches, num_blocks)
+        elif self.module_type.upper() == 'MOBILEV3':
+            self.layers = self._make_mobilenetv3_branches(num_branches, in_channels)
         else:
-            raise ValueError("module_type should be either 'LITE' or 'NAIVE'.")
+            raise ValueError("module_type should be either 'LITE' or 'NAIVE' or 'MOBILEV3'.")
         if self.with_fuse:
             self.fuse_layers = self._make_fuse_layers()
             self.relu = nn.ReLU()
@@ -617,6 +620,69 @@ class LiteHRModule(nn.Module):
 
         for i in range(num_branches):
             branches.append(self._make_one_branch(i, num_blocks))
+
+        return nn.ModuleList(branches)
+
+    def _make_mobilenetv3_branch(self, branch_index, in_channels):
+        arch_settings = {
+            'small': [
+                    [
+                        #[3, 72, 24, False, 'ReLU', 2],
+                        [3, 88, 24, False, 'ReLU', 1]
+                    ],
+                    [
+                        #[5, 96, 40, True, 'HSwish', 2],
+                        [5, 240, 48, True, 'HSwish', 1],
+                        [5, 240, 48, True, 'HSwish', 1],
+                        [5, 120, 48, True, 'HSwish', 1],
+                        [5, 144, 48, True, 'HSwish', 1]
+                    ],
+                    [
+                        #[5, 288, 96, True, 'HSwish', 2],
+                        [5, 576, 96, True, 'HSwish', 1],
+                        [5, 576, 96, True, 'HSwish', 1]
+                    ]
+                    ]
+        }
+
+        layers = []
+        layer_setting = arch_settings['small'][branch_index]
+        for i, params in enumerate(layer_setting):
+            (kernel_size, mid_channels, out_channels, with_se, act,
+             stride) = params
+            if with_se:
+                se_cfg = dict(
+                    channels=mid_channels,
+                    ratio=4,
+                    act_cfg=(dict(type='ReLU'),
+                             dict(type='HSigmoid', bias=1.0, divisor=2.0)))
+            else:
+                se_cfg = None
+
+            layer = InvertedResidual(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                mid_channels=mid_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                se_cfg=se_cfg,
+                with_expand_conv=True,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=dict(type=act),
+                with_cp=self.with_cp)
+            in_channels = out_channels
+            layers.append(layer)
+
+        return nn.Sequential(*layers)
+        
+    def _make_mobilenetv3_branches(self, num_branches, in_channels):
+        """Make branches."""
+        branches = []
+
+        for i in range(num_branches):
+            layer = self._make_mobilenetv3_branch(i, in_channels[i])
+            branches.append(layer)
 
         return nn.ModuleList(branches)
 
@@ -712,7 +778,7 @@ class LiteHRModule(nn.Module):
 
         if self.module_type.upper() == 'LITE':
             out = self.layers(x)
-        elif self.module_type.upper() == 'NAIVE':
+        elif self.module_type.upper() == 'NAIVE' or self.module_type.upper() == 'MOBILEV3':
             for i in range(self.num_branches):
                 x[i] = self.layers[i](x[i])
             out = x
