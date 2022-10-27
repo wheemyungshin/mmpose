@@ -3,6 +3,7 @@ _base_ = [
     '../../../../_base_/datasets/coco.py'
 ]
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
+
 optimizer = dict(
     type='Adam',
     lr=5e-4,
@@ -57,8 +58,8 @@ model = dict(
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1, ),
         loss_keypoint=dict(type='KLDiscretLossSimCC', use_target_weight=True),
-        output_size=[48, 64],
-        heatmap_size=[384, 512]),
+        output_size=[24, 32],
+        heatmap_size=[192, 256]),
     train_cfg=dict(),
     test_cfg=dict(
         flip_test=True,
@@ -68,8 +69,8 @@ model = dict(
         split_ratio=2))
 
 data_cfg = dict(
-    image_size=[192,256],
-    heatmap_size=[384, 512],
+    image_size=[96, 128],
+    heatmap_size=[192, 256],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],

@@ -231,7 +231,7 @@ class TopdownHeatmapSimCCHead(TopdownHeatmapBaseHead):
                 Pairs of keypoints which are mirrored.
         """
         output = self.forward(x)
-        #output = [nn.functional.softmax(output[0],dim=2), nn.functional.softmax(output[0],dim=2)]
+        output = [nn.functional.softmax(output[0],dim=2), nn.functional.softmax(output[1],dim=2)]
 
         if not isinstance(output, list):
             if flip_pairs is not None:
@@ -246,7 +246,7 @@ class TopdownHeatmapSimCCHead(TopdownHeatmapBaseHead):
                 output_heatmap = output.detach().cpu().numpy()
             return output_heatmap
         else:
-            output_results = [output[0].detach().cpu().numpy(), output[1].detach().cpu().numpy()]
+            output_results = output#[output[0].detach().cpu().numpy(), output[1].detach().cpu().numpy()]
             return output_results
 
     def _init_inputs(self, in_channels, in_index, input_transform):
