@@ -635,10 +635,7 @@ def keypoints_from_simcc(outputs,
                         pred_x[n][k][0] += np.sign(output_x[n][k][px + 1] - output_x[n][k][px - 1]) * .25
                         pred_y[n][k][0] += np.sign(output_y[n][k][py + 1] - output_y[n][k][py - 1]) * .25
 
-    if split_ratio is not None:
-        preds = np.concatenate((pred_x/split_ratio, pred_y/split_ratio), axis=2)
-    else:
-        preds =  np.concatenate((pred_x, pred_y), axis=2)
+    preds =  np.concatenate((pred_x, pred_y), axis=2)
     
     # Transform back to the image
     maxvals =  np.mean(np.concatenate((maxval_x, maxval_y), axis=2), axis=2, keepdims=True)
