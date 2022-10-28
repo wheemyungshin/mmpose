@@ -62,9 +62,9 @@ model = dict(
         heatmap_size=[192, 256]),
     train_cfg=dict(),
     test_cfg=dict(
-        flip_test=True,
+        flip_test=False,
         post_process='default',
-        shift_heatmap=True,
+        shift_heatmap=False,
         modulate_kernel=11,
         split_ratio=2))
 
