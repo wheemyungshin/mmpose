@@ -15,9 +15,9 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
-from .utils import channel_shuffle, load_checkpoint, InvertedResidual
-
-
+from .utils import channel_shuffle, load_checkpoint
+from .utils import InvertedResidual as InvertedResidualv3
+from .mobilenet_v2 import InvertedResidual as InvertedResidualv2
 
 class SpatialWeighting(nn.Module):
     """Spatial weighting module.
@@ -559,6 +559,8 @@ class LiteHRModule(nn.Module):
             self.layers = self._make_weighting_blocks(num_blocks, reduce_ratio)
         elif self.module_type.upper() == 'NAIVE':
             self.layers = self._make_naive_branches(num_branches, num_blocks)
+        elif self.module_type.upper() == 'MOBILEV2':
+            self.layers = self._make_mobilenetv2_branches(num_branches, in_channels)
         elif self.module_type.upper() == 'MOBILEV3':
             self.layers = self._make_mobilenetv3_branches(num_branches, in_channels)
         else:
@@ -623,6 +625,45 @@ class LiteHRModule(nn.Module):
 
         return nn.ModuleList(branches)
 
+
+    def _make_mobilenetv2_branch(self, branch_index, in_channels):
+        # layer, from left to right: expand_ratio, channel, num_blocks, stride.
+        arch_settings = [
+                        [6, 32, 2, 1],
+                        [6, 64, 6, 1],
+                        [6, 160, 3, 1],
+                        ]
+
+        layers = []
+        layer_setting = arch_settings[branch_index]
+        expand_ratio, out_channels, num_blocks, stride = layer_setting
+
+        for i in range(num_blocks):
+            if i >= 1:
+                stride = 1
+                layer = InvertedResidualv2(
+                    in_channels,
+                    out_channels,
+                    stride,
+                    expand_ratio=expand_ratio,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg,
+                    act_cfg=dict(type='ReLU6'),
+                    with_cp=self.with_cp)
+                in_channels = out_channels
+                layers.append(layer)
+        return nn.Sequential(*layers)
+
+    def _make_mobilenetv2_branches(self, num_branches, in_channels):
+        """Make branches."""
+        branches = []
+
+        for i in range(num_branches):
+            layer = self._make_mobilenetv2_branch(i, in_channels[i])
+            branches.append(layer)
+
+        return nn.ModuleList(branches)
+
     def _make_mobilenetv3_branch(self, branch_index, in_channels):
         arch_settings = {
             'small': [
@@ -659,7 +700,7 @@ class LiteHRModule(nn.Module):
             else:
                 se_cfg = None
 
-            layer = InvertedResidual(
+            layer = InvertedResidualv3(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 mid_channels=mid_channels,
@@ -778,7 +819,7 @@ class LiteHRModule(nn.Module):
 
         if self.module_type.upper() == 'LITE':
             out = self.layers(x)
-        elif self.module_type.upper() == 'NAIVE' or self.module_type.upper() == 'MOBILEV3':
+        elif self.module_type.upper() == 'NAIVE' or self.module_type.upper() == 'MOBILEV2' or self.module_type.upper() == 'MOBILEV3':
             for i in range(self.num_branches):
                 x[i] = self.layers[i](x[i])
             out = x
