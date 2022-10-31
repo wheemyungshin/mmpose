@@ -219,9 +219,12 @@ def main():
                 return_heatmap=return_heatmap,
                 outputs=output_layer_names)
 
-            new_pose_results = []
-            for pose_result in pose_results:
-                if np.sum(pose_result['keypoints'][:,-1] > args.kpt_thr) >= args.min_points:
+            new_pose_results = []	
+            for pose_result in pose_results:	
+                kpoints = pose_result['keypoints'][:,-1]	
+                # left right division	
+                # even for right and odd for left, and zero is for nose	
+                if np.sum(kpoints[2::2] > args.kpt_thr) >= args.min_points or np.sum(kpoints[1::2] > args.kpt_thr) >= args.min_points:	
                     new_pose_results.append(pose_result)
 
             # show the results
