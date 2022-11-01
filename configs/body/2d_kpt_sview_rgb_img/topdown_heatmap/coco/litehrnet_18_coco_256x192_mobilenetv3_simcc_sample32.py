@@ -2,6 +2,7 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
+load_from = 'work_dirs/litehrnet_18_coco_256x192_mobilenetv3_sample32/best_AP_epoch_210.pth'
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 
 optimizer = dict(
