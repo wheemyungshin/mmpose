@@ -2,6 +2,7 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
+load_from = 'work_dirs/litehrnet_18_coco_256x192_sample32/epoch_210.pth'
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 optimizer = dict(
     type='Adam',
@@ -14,8 +15,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=0.001,
-    step=[170, 200])
-total_epochs = 210
+    step=[10, 40])
+total_epochs = 50
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
