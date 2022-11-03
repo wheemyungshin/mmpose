@@ -51,7 +51,8 @@ def main():
     Using mmdet to detect the human.
     """
     parser = ArgumentParser()
-    parser.add_argument('person_results', help='Json file for detection')
+    parser.add_argument('person_results', help='Json file for detection')	
+    parser.add_argument('pose_config', help='Config file for pose')
     parser.add_argument('onnx_file', help='onnx file for pose')
     parser.add_argument('--video-path', type=str, help='Video path (video file or dir)')
     parser.add_argument(
@@ -115,15 +116,22 @@ def main():
     # build the pose model from a config file and a checkpoint file
     #pose_model = init_pose_model(
     #    args.pose_config, args.pose_checkpoint, device=args.device.lower())
+    config = args.pose_config
+    if isinstance(config, str):
+        config = mmcv.Config.fromfile(config)
+    elif not isinstance(config, mmcv.Config):
+        raise TypeError('config must be a filename or Config object, '
+                        f'but got {type(config)}')
+    config.model.pretrained = None
 
     onnx_model = onnx.load(args.onnx_file)
     onnx.checker.check_model(onnx_model)
 
     ort_session = onnxruntime.InferenceSession(args.onnx_file)
 
-    dataset = 'TopDownCocoDataset'
+    dataset = config.data['test']['type']
     # get datasetinfo
-    from configs._base_.datasets.coco import dataset_info
+    dataset_info = config.data['test'].get('dataset_info', None)
     if dataset_info is None:
         warnings.warn(
             'Please set `dataset_info` in the config.'
@@ -195,7 +203,7 @@ def main():
                         filtered_person_results.append(person_result)
 
             # test a single image, with a list of bboxes.
-            pose_results, returned_outputs = inference_top_down_pose_model_onnx(
+            pose_results = inference_top_down_pose_model_onnx(
                 ort_session,
                 cur_frame,
                 filtered_person_results,
@@ -204,8 +212,10 @@ def main():
                 dataset=dataset,
                 dataset_info=dataset_info,
                 return_heatmap=return_heatmap,
-                outputs=output_layer_names)
+                outputs=output_layer_names,
+                config=config)
 
+            print("pose_results: ", pose_results)
             new_pose_results = []	
             for pose_result in pose_results:	
                 kpoints = pose_result['keypoints'][:,-1]	

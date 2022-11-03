@@ -1,6 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from .inference import (collect_multi_frames, inference_bottom_up_pose_model,
-                        inference_gesture_model, inference_top_down_pose_model,
+                        inference_gesture_model, inference_top_down_pose_model, inference_top_down_pose_model_onnx,
                         init_pose_model, process_mmdet_results,
                         vis_pose_result)
 from .inference_3d import (extract_pose_sequence, inference_interhand_3d_model,
@@ -14,6 +14,7 @@ __all__ = [
     'train_model',
     'init_pose_model',
     'inference_top_down_pose_model',
+    'inference_top_down_pose_model_onnx',
     'inference_bottom_up_pose_model',
     'multi_gpu_test',
     'single_gpu_test',
