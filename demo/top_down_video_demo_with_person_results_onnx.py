@@ -7,7 +7,7 @@ import cv2
 import mmcv
 
 from mmpose.apis import (inference_top_down_pose_model_onnx,
-                         vis_pose_result)
+                         vis_pose_result, vis_pose_result_onnx)
 from mmpose.datasets import DatasetInfo
 
 import numpy as np
@@ -66,8 +66,6 @@ def main():
         help='Root of the output video file. '
         'Default not saving the visualization video.')
     parser.add_argument(
-        '--device', default='cuda:0', help='Device used for inference')
-    parser.add_argument(
         '--det-cat-id',
         type=int,
         default=1,
@@ -113,9 +111,6 @@ def main():
     assert args.show or (args.out_video_root != '')
 
     print('Initializing model...:', args.onnx_file)
-    # build the pose model from a config file and a checkpoint file
-    #pose_model = init_pose_model(
-    #    args.pose_config, args.pose_checkpoint, device=args.device.lower())
     config = args.pose_config
     if isinstance(config, str):
         config = mmcv.Config.fromfile(config)
@@ -215,7 +210,6 @@ def main():
                 outputs=output_layer_names,
                 config=config)
 
-            print("pose_results: ", pose_results)
             new_pose_results = []	
             for pose_result in pose_results:	
                 kpoints = pose_result['keypoints'][:,-1]	
@@ -225,8 +219,8 @@ def main():
                     new_pose_results.append(pose_result)
 
             # show the results
-            vis_frame = vis_pose_result(
-                pose_model,
+            vis_frame = vis_pose_result_onnx(
+                ort_session,
                 cur_frame,
                 new_pose_results,
                 dataset=dataset,
@@ -234,7 +228,8 @@ def main():
                 kpt_score_thr=args.kpt_thr,
                 radius=args.radius,
                 thickness=args.thickness,
-                show=False)
+                show=False,
+                config=config)
 
             if args.show:
                 cv2.imshow('Frame', vis_frame)

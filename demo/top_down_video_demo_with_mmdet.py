@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 import cv2
 import mmcv
 
-from mmpose.apis import (collect_multi_frames, inference_top_down_pose_model,
+from mmpose.apis import (inference_top_down_pose_model,
                          init_pose_model, process_mmdet_results,
                          vis_pose_result)
 from mmpose.datasets import DatasetInfo
@@ -75,20 +75,6 @@ def main():
         type=int,
         default=1,
         help='Link thickness for visualization')
-
-    parser.add_argument(
-        '--use-multi-frames',
-        action='store_true',
-        default=False,
-        help='whether to use multi frames for inference in the pose'
-        'estimation stage. Default: False.')
-    parser.add_argument(
-        '--online',
-        action='store_true',
-        default=False,
-        help='inference mode. If set to True, can not use future frame'
-        'information when using multi frames for inference in the pose'
-        'estimation stage. Default: False.')
     parser.add_argument(
         '--resize-w',
         type=int,
@@ -163,11 +149,6 @@ def main():
                 fps, size)
         print("Loading...:", video_path)
 
-        # frame index offsets for inference, used in multi-frame inference setting
-        if args.use_multi_frames:
-            assert 'frame_indices_test' in pose_model.cfg.data.test.data_cfg
-            indices = pose_model.cfg.data.test.data_cfg['frame_indices_test']
-
         # whether to return heatmap, optional
         return_heatmap = False
 
@@ -192,15 +173,11 @@ def main():
                 person_size = (person_result['bbox'][2]-person_result['bbox'][0])*(person_result['bbox'][3]-person_result['bbox'][1])
                 if person_size >= args.min_bbox_size:
                     filtered_person_results.append(person_result)
-                
-            if args.use_multi_frames:
-                frames = collect_multi_frames(video, frame_id, indices,
-                                            args.online)
 
             # test a single image, with a list of bboxes.
             pose_results, returned_outputs = inference_top_down_pose_model(
                 pose_model,
-                frames if args.use_multi_frames else cur_frame,
+                cur_frame,
                 filtered_person_results,
                 bbox_thr=args.bbox_thr,
                 format='xyxy',
