@@ -28,7 +28,8 @@ def inference_top_down_pose_model_onnx(ort_session,
                                   dataset_info=None,
                                   return_heatmap=False,
                                   outputs=None,
-                                  config=None):
+                                  config=None,
+                                  size=(0 ,0)):
     """Inference a single image with a list of person bounding boxes. Support
     single-frame and multi-frame inference setting.
 
@@ -128,7 +129,8 @@ def inference_top_down_pose_model_onnx(ort_session,
         dataset_info=dataset_info,
         return_heatmap=return_heatmap,
         use_multi_frames=use_multi_frames,
-        config=config)
+        config=config,
+        size=size)
 
     assert len(poses) == len(person_results), print(
         len(poses), len(person_results), len(bboxes_xyxy))
@@ -148,7 +150,8 @@ def _inference_single_pose_model_onnx(ort_session,
                                  dataset_info=None,
                                  return_heatmap=False,
                                  use_multi_frames=False,
-                                 config=None):
+                                 config=None,
+                                 size=(0 ,0)):
     """Inference human bounding boxes.
 
     Note:
@@ -173,8 +176,12 @@ def _inference_single_pose_model_onnx(ort_session,
         heatmap[N, K, H, W]: Model output heatmap.
     """
 
-    cfg = config
     device = -1
+
+    cfg = copy.deepcopy(config)
+    if not (size[0] == 0 or size[1] == 0):
+        cfg.data_cfg.image_size = size
+        cfg.data_cfg.heatmap_size = [size[0]/4, size[1]/4]
 
     if use_multi_frames:
         assert 'frame_weight_test' in cfg.data.test.data_cfg
@@ -763,3 +770,64 @@ def show_result_(img,
         imwrite(img, out_file)
 
     return img
+
+
+def inference_detector_onnx(ort_session, imgs, config=None, size=(0, 0)):
+    """Inference image(s) with the detector.
+
+    Args:
+        model (nn.Module): The loaded detector.
+        imgs (str/ndarray or list[str/ndarray] or tuple[str/ndarray]):
+           Either image files or loaded images.
+
+    Returns:
+        If imgs is a list or tuple, the same length list type results
+        will be returned, otherwise return the detection results directly.
+    """
+    imgs = [imgs]
+
+    device = -1
+
+    cfg = copy.deepcopy(config)
+    if not (size[0] == 0 or size[1] == 0):
+        cfg.img_scale = size
+        cfg.model.input_size = size
+        for pipeline in cfg.data.test.pipeline:
+            if pipeline['type'] == 'MultiScaleFlipAug':
+                pipeline['img_scale'] = size
+                
+    test_pipeline = Compose(cfg.data.test.pipeline)
+
+    datas = []
+    for img in imgs:
+        # prepare data
+        if isinstance(img, np.ndarray):
+            # directly add img
+            data = dict(img=img)
+        else:
+            # add information into dict
+            data = dict(img_info=dict(filename=img), img_prefix=None)
+        # build the data pipeline
+        data = test_pipeline(data)
+        datas.append(data)
+
+    data = collate(datas, samples_per_gpu=len(imgs))
+    # just get the actual data from DataContainer
+    data['img_metas'] = [img_metas.data[0] for img_metas in data['img_metas']]
+    data['img'] = [img.data[0] for img in data['img']]
+    data = scatter(data, [device])[0]
+
+    # forward the model
+    with torch.no_grad():
+        det_ort_inputs = {ort_session.get_inputs()[0].name: data['img'][0].numpy()}
+        mmdet_results = ort_session.run(None, det_ort_inputs)
+    
+    person_boxes = mmdet_results[0][0, mmdet_results[1][0]==0, :]
+    
+    person_results = []
+    for bbox in person_boxes:
+        person = {}
+        person['bbox'] = bbox
+        person_results.append(person)
+
+    return person_results

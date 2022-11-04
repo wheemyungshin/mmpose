@@ -7,7 +7,7 @@ import cv2
 import mmcv
 
 from mmpose.apis import (inference_top_down_pose_model_onnx, process_mmdet_results,
-                         vis_pose_result, vis_pose_result_onnx)
+                         vis_pose_result, vis_pose_result_onnx, inference_detector_onnx)
 from mmpose.datasets import DatasetInfo
 
 try:
@@ -24,6 +24,7 @@ from collections import defaultdict
 import onnx
 import onnxruntime
 
+import time
 
 def load_person_detection_results(args):
     """Load coco person detection results."""
@@ -73,11 +74,6 @@ def main():
         help='Root of the output video file. '
         'Default not saving the visualization video.')
     parser.add_argument(
-        '--det-cat-id',
-        type=int,
-        default=1,
-        help='Category id for bounding box detection model')
-    parser.add_argument(
         '--bbox-thr',
         type=float,
         default=0.3,
@@ -117,6 +113,7 @@ def main():
 
     assert args.show or (args.output_path != '')
     assert args.det_config is not None
+    assert args.pose_config is not None
     assert args.det_onnx_file is not None
     
     print('Initializing model...')
@@ -126,22 +123,30 @@ def main():
 
     det_ort_session = onnxruntime.InferenceSession(args.det_onnx_file)    
 
-    config = args.pose_config
-    if isinstance(config, str):
-        config = mmcv.Config.fromfile(config)
-    elif not isinstance(config, mmcv.Config):
+    det_config = args.det_config
+    if isinstance(det_config, str):
+        det_config = mmcv.Config.fromfile(det_config)
+    elif not isinstance(det_config, mmcv.Config):
         raise TypeError('config must be a filename or Config object, '
-                        f'but got {type(config)}')
-    config.model.pretrained = None
+                        f'but got {type(det_config)}')
+    det_config.model.pretrained = None
+
+    pose_config = args.pose_config
+    if isinstance(pose_config, str):
+        pose_config = mmcv.Config.fromfile(pose_config)
+    elif not isinstance(pose_config, mmcv.Config):
+        raise TypeError('config must be a filename or Config object, '
+                        f'but got {type(pose_config)}')
+    pose_config.model.pretrained = None
 
     pose_model = onnx.load(args.pose_onnx_file)
     onnx.checker.check_model(pose_model)
 
     pose_ort_session = onnxruntime.InferenceSession(args.pose_onnx_file)
 
-    dataset = config.data['test']['type']
+    dataset = pose_config.data['test']['type']
     # get datasetinfo
-    dataset_info = config.data['test'].get('dataset_info', None)
+    dataset_info = pose_config.data['test'].get('dataset_info', None)
     if dataset_info is None:
         warnings.warn(
             'Please set `dataset_info` in the config.'
@@ -160,19 +165,19 @@ def main():
     else:
         input_path_list = [args.input_path]
 
-    # read video
+    # read videos / images
+    start_time = time.time()
+    last_time = start_time
     for input_path in input_path_list:
-        """
         input_type = None
         if os.path.splitext(input_path)[1] in [".mp4", ".MP4"]:
-            print("Video file detected")
+            print("Video file detected: {}".format(input_path))
             input_type = "video"
         elif os.path.splitext(input_path)[1] in [".jpg", ".png", ".jpeg", ".JPEG"]:
-            print("Image file detected")
+            print("Image file detected: {}".format(input_path), end="")
             input_type = "image"
         else:
             raise TypeError('the input file type is not supported: ', os.path.splitext(input_path)[1])
-        """
 
         if args.output_path == '':
             save_output = False
@@ -180,40 +185,37 @@ def main():
             os.makedirs(args.output_path, exist_ok=True)
             save_output = True
 
-        video = mmcv.VideoReader(input_path)
-        assert video.opened, f'Faild to load video file {input_path}'
+        if input_type == "video":
+            video = mmcv.VideoReader(input_path)
+            assert video.opened, f'Faild to load video file {input_path}'
 
-        if save_output:
-            fps = video.fps
-            if args.resize_h == 0 or args.resize_w == 0:
-                size = (video.width, video.height)
-            else:
-                size = (args.resize_w, args.resize_h)
-            
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            videoWriter = cv2.VideoWriter(
-                os.path.join(args.output_path,
-                            f'vis_{os.path.basename(input_path)}'), fourcc,
-                fps, size)
-        print("Loading...:", input_path)
+            if save_output:
+                fps = video.fps
+                if args.resize_h == 0 or args.resize_w == 0:
+                    size = (video.width, video.height)
+                else:
+                    size = (args.resize_w, args.resize_h)
+                
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                videoWriter = cv2.VideoWriter(
+                    os.path.join(args.output_path,
+                                f'vis_{os.path.basename(input_path)}'), fourcc,
+                    fps, size)
 
-        # return the output of some desired layers,
-        # e.g. use ('backbone', ) to return backbone feature
-        output_layer_names = None
+            # return the output of some desired layers,
+            # e.g. use ('backbone', ) to return backbone feature
+            input_dataset = mmcv.track_iter_progress(video)
+        
+        elif input_type == "image":
+            input_dataset = [cv2.imread(input_path)]
 
-        print('Running inference...')
-        for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
+        for frame_id, cur_frame in enumerate(input_dataset):
             if not (args.resize_h == 0 or args.resize_w == 0):
                 cur_frame = cv2.resize(cur_frame, (args.resize_w, args.resize_h), interpolation=cv2.INTER_AREA)
 
             # get the detection results of current frame
             # the resulting box is (x1, y1, x2, y2)            
-            print(type(cur_frame))
-            det_ort_inputs = {det_ort_session.get_inputs()[0].name: cur_frame}
-            mmdet_results = det_ort_session.run(None, det_ort_inputs)[0]
-
-            # keep the person class bounding boxes.
-            person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
+            person_results = inference_detector_onnx(det_ort_session, cur_frame, config=det_config, size=(args.resize_h, args.resize_w))
 
             filtered_person_results = []
             for person_result in person_results:
@@ -231,8 +233,9 @@ def main():
                 dataset=dataset,
                 dataset_info=dataset_info,
                 return_heatmap=False,
-                outputs=output_layer_names,
-                config=config)
+                outputs=None,
+                config=pose_config,
+                size=(args.resize_h, args.resize_w))
 
             new_pose_results = []	
             for pose_result in pose_results:	
@@ -253,21 +256,26 @@ def main():
                 radius=args.radius,
                 thickness=args.thickness,
                 show=False,
-                config=config)
+                config=pose_config)
 
             if args.show:
                 cv2.imshow('Frame', vis_frame)
 
             if save_output:
-                videoWriter.write(vis_frame)
+                if input_type == "video":
+                    videoWriter.write(vis_frame)
+                elif input_type == "image":
+                    cv2.imwrite(os.path.join(args.output_path, f'vis_{os.path.basename(input_path)}'), vis_frame)
 
             if args.show and cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-        if save_output:
+        if save_output and input_type == "video":
             videoWriter.release()
         if args.show:
             cv2.destroyAllWindows()
+        print(" (Elapsed: {:.3f}s / Total: {:.3f}s)".format(time.time()-last_time,time.time()-start_time))
+        last_time = time.time()
 
 
 if __name__ == '__main__':
