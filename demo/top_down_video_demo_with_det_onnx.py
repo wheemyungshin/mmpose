@@ -240,9 +240,10 @@ def main():
             new_pose_results = []	
             for pose_result in pose_results:	
                 kpoints = pose_result['keypoints'][:,-1]	
-                # left right division	
+                # left right division / face division
                 # even for right and odd for left, and zero is for nose	
-                if np.sum(kpoints[2::2] > args.kpt_thr) >= args.min_points or np.sum(kpoints[1::2] > args.kpt_thr) >= args.min_points:	
+                if np.sum(kpoints[2::2] > args.kpt_thr) >= args.min_points or np.sum(kpoints[1::2] > args.kpt_thr) >= args.min_points or \
+                    np.sum(kpoints[:5] > args.kpt_thr) >= args.min_points :	
                     new_pose_results.append(pose_result)
 
             # show the results
