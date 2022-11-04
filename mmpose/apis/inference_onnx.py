@@ -822,8 +822,13 @@ def inference_detector_onnx(ort_session, imgs, config=None, size=(0, 0)):
         det_ort_inputs = {ort_session.get_inputs()[0].name: data['img'][0].numpy()}
         mmdet_results = ort_session.run(None, det_ort_inputs)
     
-    person_boxes = mmdet_results[0][0, mmdet_results[1][0]==0, :]
-    
+    if len(mmdet_results[0].shape)==3:
+        person_boxes = mmdet_results[0][0, mmdet_results[1][0]==0, :]
+    elif len(mmdet_results[0].shape)==2:
+        person_boxes = mmdet_results[0][:, [1,2,3,4,6]]
+    else:
+        person_boxes = None
+
     person_results = []
     for bbox in person_boxes:
         person = {}
