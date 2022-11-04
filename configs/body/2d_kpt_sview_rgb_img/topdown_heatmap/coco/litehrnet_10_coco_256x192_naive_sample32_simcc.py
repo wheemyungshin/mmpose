@@ -2,8 +2,9 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
-load_from = 'work_dirs/litehrnet_18_coco_256x192_sample32/epoch_210.pth'
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
+load_from = 'work_dirs/litehrnet_10_coco_256x192_naive_sample32/epoch_210.pth'
+
 optimizer = dict(
     type='Adam',
     lr=5e-4,
@@ -38,10 +39,10 @@ model = dict(
             stem=dict(stem_channels=32, out_channels=32, expand_ratio=1),
             num_stages=3,
             stages_spec=dict(
-                num_modules=(2, 4, 2),
+                num_modules=(1, 2, 1),
                 num_branches=(2, 3, 4),
                 num_blocks=(2, 2, 2),
-                module_type=('LITE', 'LITE', 'LITE'),
+                module_type=('NAIVE', 'NAIVE', 'NAIVE'),
                 with_fuse=(True, True, True),
                 reduce_ratios=(8, 8, 8),
                 num_channels=(
@@ -69,7 +70,7 @@ model = dict(
         split_ratio=2))
 
 data_cfg = dict(
-    image_size=[192,256],
+    image_size=[192, 256],
     heatmap_size=[384, 512],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],

@@ -6,9 +6,15 @@ from argparse import ArgumentParser
 import cv2
 import mmcv
 
-from mmpose.apis import (inference_top_down_pose_model_onnx,
+from mmpose.apis import (inference_top_down_pose_model_onnx, process_mmdet_results,
                          vis_pose_result, vis_pose_result_onnx)
 from mmpose.datasets import DatasetInfo
+
+try:
+    from mmdet.apis import inference_detector, init_detector
+    has_mmdet = True
+except (ImportError, ModuleNotFoundError):
+    has_mmdet = False
 
 import numpy as np
 import json
@@ -50,10 +56,11 @@ def main():
 
     Using mmdet to detect the human.
     """
-    parser = ArgumentParser()
-    parser.add_argument('person_results', help='Json file for detection')	
+    parser = ArgumentParser()	
+    parser.add_argument('det_config', help='Config file for detection')
+    parser.add_argument('det_onnx_file', help='onnx file for detection')
     parser.add_argument('pose_config', help='Config file for pose')
-    parser.add_argument('onnx_file', help='onnx file for pose')
+    parser.add_argument('pose_onnx_file', help='onnx file for pose')
     parser.add_argument('--input-path', type=str, help='Video path (video or image / file or dir)')
     parser.add_argument(
         '--show',
@@ -109,8 +116,16 @@ def main():
     args = parser.parse_args()
 
     assert args.show or (args.output_path != '')
+    assert args.det_config is not None
+    assert args.det_onnx_file is not None
+    
+    print('Initializing model...')
+    # build the detection model from a config file and a checkpoint file    
+    det_model = onnx.load(args.det_onnx_file)
+    onnx.checker.check_model(det_model)
 
-    print('Initializing model...:', args.onnx_file)
+    det_ort_session = onnxruntime.InferenceSession(args.det_onnx_file)    
+
     config = args.pose_config
     if isinstance(config, str):
         config = mmcv.Config.fromfile(config)
@@ -119,10 +134,10 @@ def main():
                         f'but got {type(config)}')
     config.model.pretrained = None
 
-    onnx_model = onnx.load(args.onnx_file)
-    onnx.checker.check_model(onnx_model)
+    pose_model = onnx.load(args.pose_onnx_file)
+    onnx.checker.check_model(pose_model)
 
-    ort_session = onnxruntime.InferenceSession(args.onnx_file)
+    pose_ort_session = onnxruntime.InferenceSession(args.pose_onnx_file)
 
     dataset = config.data['test']['type']
     # get datasetinfo
@@ -144,9 +159,6 @@ def main():
             input_path_list.append(input_path)
     else:
         input_path_list = [args.input_path]
-
-    #read person results
-    person_results_dict = load_person_detection_results(args)
 
     # read video
     for input_path in input_path_list:
@@ -194,20 +206,24 @@ def main():
             if not (args.resize_h == 0 or args.resize_w == 0):
                 cur_frame = cv2.resize(cur_frame, (args.resize_w, args.resize_h), interpolation=cv2.INTER_AREA)
 
-            person_results = person_results_dict[input_path.split("/")[-1]]
+            # get the detection results of current frame
+            # the resulting box is (x1, y1, x2, y2)            
+            print(type(cur_frame))
+            det_ort_inputs = {det_ort_session.get_inputs()[0].name: cur_frame}
+            mmdet_results = det_ort_session.run(None, det_ort_inputs)[0]
+
+            # keep the person class bounding boxes.
+            person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
 
             filtered_person_results = []
-            for person_result, person_image_id in person_results:
-                if person_image_id == frame_id:
-                    #print("person_result: ", person_result)
-                    #print("person_image_id: ", person_image_id)
-                    person_size = (person_result['bbox'][2]-person_result['bbox'][0])*(person_result['bbox'][3]-person_result['bbox'][1])
-                    if person_size >= args.min_bbox_size:
-                        filtered_person_results.append(person_result)
+            for person_result in person_results:
+                person_size = (person_result['bbox'][2]-person_result['bbox'][0])*(person_result['bbox'][3]-person_result['bbox'][1])
+                if person_size >= args.min_bbox_size:
+                    filtered_person_results.append(person_result)
 
             # test a single image, with a list of bboxes.
             pose_results = inference_top_down_pose_model_onnx(
-                ort_session,
+                pose_ort_session,
                 cur_frame,
                 filtered_person_results,
                 bbox_thr=args.bbox_thr,
@@ -228,7 +244,7 @@ def main():
 
             # show the results
             vis_frame = vis_pose_result_onnx(
-                ort_session,
+                pose_ort_session,
                 cur_frame,
                 new_pose_results,
                 dataset=dataset,

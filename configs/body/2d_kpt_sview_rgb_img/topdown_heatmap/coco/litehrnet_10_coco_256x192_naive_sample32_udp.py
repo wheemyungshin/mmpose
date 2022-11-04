@@ -2,8 +2,8 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
-load_from = 'work_dirs/litehrnet_18_coco_256x192_sample32/epoch_210.pth'
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
+
 optimizer = dict(
     type='Adam',
     lr=5e-4,
@@ -17,6 +17,7 @@ lr_config = dict(
     warmup_ratio=0.001,
     step=[170, 200])
 total_epochs = 210
+target_type = 'GaussianHeatmap'
 channel_cfg = dict(
     num_output_channels=17,
     dataset_joints=17,
@@ -38,10 +39,10 @@ model = dict(
             stem=dict(stem_channels=32, out_channels=32, expand_ratio=1),
             num_stages=3,
             stages_spec=dict(
-                num_modules=(2, 4, 2),
+                num_modules=(1, 2, 1),
                 num_branches=(2, 3, 4),
                 num_blocks=(2, 2, 2),
-                module_type=('LITE', 'LITE', 'LITE'),
+                module_type=('NAIVE', 'NAIVE', 'NAIVE'),
                 with_fuse=(True, True, True),
                 reduce_ratios=(8, 8, 8),
                 num_channels=(
@@ -52,25 +53,24 @@ model = dict(
             with_head=True,
         )),
     keypoint_head=dict(
-        type='TopdownHeatmapSimCCHead',
+        type='TopdownHeatmapSimpleHead',
         in_channels=40,
         out_channels=channel_cfg['num_output_channels'],
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1, ),
-        loss_keypoint=dict(type='KLDiscretLossSimCC', use_target_weight=True),
-        output_size=[48, 64],
-        heatmap_size=[384, 512]),
+        loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
-    test_cfg=dict(
-        flip_test=False,
+	test_cfg=dict(
+        flip_test=True,
         post_process='default',
         shift_heatmap=False,
+        target_type=target_type,
         modulate_kernel=11,
-        split_ratio=2))
+        use_udp=True))
 
 data_cfg = dict(
-    image_size=[192,256],
-    heatmap_size=[384, 512],
+    image_size=[192, 256],
+    heatmap_size=[48, 64],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],
@@ -78,7 +78,7 @@ data_cfg = dict(
     soft_nms=False,
     nms_thr=1.0,
     oks_thr=0.9,
-    vis_thr=0.01,
+    vis_thr=0.2,
     use_gt_bbox=False,
     det_bbox_thr=0.0,
     bbox_file='data/coco/person_detection_results/'
@@ -97,13 +97,17 @@ train_pipeline = [
     dict(
         type='TopDownGetRandomScaleRotation', rot_factor=30,
         scale_factor=0.25),
-    dict(type='TopDownAffine'),
+    dict(type='TopDownAffine', use_udp=True),
     dict(type='ToTensor'),
     dict(
         type='NormalizeTensor',
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225]),
-    dict(type='TopDownGenerateSimCCTarget', sigma=4, split_ratio=2),
+    dict(
+        type='TopDownGenerateTarget',
+        sigma=2,
+        encoding='UDP',
+        target_type=target_type),
     dict(
         type='Collect',
         keys=['img', 'target', 'target_weight'],
@@ -116,7 +120,7 @@ train_pipeline = [
 val_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='TopDownGetBboxCenterScale', padding=1.25),
-    dict(type='TopDownAffine'),
+    dict(type='TopDownAffine', use_udp=True),
     dict(type='ToTensor'),
     dict(
         type='NormalizeTensor',
