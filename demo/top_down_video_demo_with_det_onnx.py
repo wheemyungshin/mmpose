@@ -108,6 +108,10 @@ def main():
         '--resize-h',
         type=int,
         default=0)
+    parser.add_argument(
+        '--detection-frame-stride',
+        type=int,
+        default=1)
 
     args = parser.parse_args()
 
@@ -207,13 +211,16 @@ def main():
         elif input_type == "image":
             input_dataset = [cv2.imread(input_path)]
 
+        person_results = None
         for frame_id, cur_frame in enumerate(input_dataset):
             if not (args.resize_h == 0 or args.resize_w == 0):
                 cur_frame = cv2.resize(cur_frame, (args.resize_w, args.resize_h), interpolation=cv2.INTER_AREA)
 
             # get the detection results of current frame
-            # the resulting box is (x1, y1, x2, y2)            
-            person_results = inference_detector_onnx(det_ort_session, cur_frame, config=det_config, size=(args.resize_h, args.resize_w))
+            # the resulting box is (x1, y1, x2, y2)
+            if frame_id == 0 or frame_id % args.detection_frame_stride == 0:
+                person_results = inference_detector_onnx(det_ort_session, cur_frame, config=det_config, size=(args.resize_h, args.resize_w))
+                
 
             filtered_person_results = []
             for person_result in person_results:
