@@ -1363,3 +1363,17 @@ class MultiScaleFlipAug:
         repr_str += f'img_scale={self.img_scale}, flip={self.flip}, '
         repr_str += f'flip_direction={self.flip_direction})'
         return repr_str
+
+@PIPELINES.register_module()
+class Div255:
+    """Transform image to Tensor.
+
+    Required key: 'img'. Modifies key: 'img'.
+
+    Args:
+        results (dict): contain all information about training.
+    """
+    def __call__(self, results):
+        results['img'] = (results['img'] / 255).astype(np.float32)
+
+        return results

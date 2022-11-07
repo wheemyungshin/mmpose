@@ -129,7 +129,6 @@ def main():
     elif not isinstance(det_config, mmcv.Config):
         raise TypeError('config must be a filename or Config object, '
                         f'but got {type(det_config)}')
-    det_config.model.pretrained = None
 
     pose_config = args.pose_config
     if isinstance(pose_config, str):
@@ -137,7 +136,6 @@ def main():
     elif not isinstance(pose_config, mmcv.Config):
         raise TypeError('config must be a filename or Config object, '
                         f'but got {type(pose_config)}')
-    pose_config.model.pretrained = None
 
     pose_model = onnx.load(args.pose_onnx_file)
     onnx.checker.check_model(pose_model)

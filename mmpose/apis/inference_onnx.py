@@ -791,7 +791,6 @@ def inference_detector_onnx(ort_session, imgs, config=None, size=(0, 0)):
     cfg = copy.deepcopy(config)
     if not (size[0] == 0 or size[1] == 0):
         cfg.img_scale = size
-        cfg.model.input_size = size
         for pipeline in cfg.data.test.pipeline:
             if pipeline['type'] == 'MultiScaleFlipAug':
                 pipeline['img_scale'] = size
