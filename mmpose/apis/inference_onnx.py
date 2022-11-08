@@ -819,12 +819,12 @@ def inference_detector_onnx(ort_session, imgs, config=None, size=(0, 0)):
     # forward the model
     with torch.no_grad():
         det_ort_inputs = {ort_session.get_inputs()[0].name: data['img'][0].numpy()}
-        mmdet_results = ort_session.run(None, det_ort_inputs)
+        det_results = ort_session.run(None, det_ort_inputs)
     
-    if len(mmdet_results[0].shape)==3:
-        person_boxes = mmdet_results[0][0, mmdet_results[1][0]==0, :]
-    elif len(mmdet_results[0].shape)==2:
-        person_boxes = mmdet_results[0][:, [1,2,3,4,6]]
+    if len(det_results[0].shape)==3:
+        person_boxes = det_results[0][0, det_results[1][0]==0, :]
+    elif len(det_results[0].shape)==2:
+        person_boxes = det_results[0][:, [1,2,3,4,6]]
     else:
         person_boxes = None
 

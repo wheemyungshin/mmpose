@@ -6,15 +6,10 @@ from argparse import ArgumentParser
 import cv2
 import mmcv
 
-from mmpose.apis import (inference_top_down_pose_model_onnx, process_mmdet_results,
+from mmpose.apis import (inference_top_down_pose_model_onnx,
                          vis_pose_result, vis_pose_result_onnx, inference_detector_onnx)
 from mmpose.datasets import DatasetInfo
 
-try:
-    from mmdet.apis import inference_detector, init_detector
-    has_mmdet = True
-except (ImportError, ModuleNotFoundError):
-    has_mmdet = False
 
 import numpy as np
 import json
@@ -54,8 +49,6 @@ def load_person_detection_results(args):
 
 def main():
     """Visualize the demo video (support both single-frame and multi-frame).
-
-    Using mmdet to detect the human.
     """
     parser = ArgumentParser()	
     parser.add_argument('det_config', help='Config file for detection')
