@@ -214,12 +214,13 @@ def main():
             if frame_id == 0 or frame_id % args.detection_frame_stride == 0:
                 person_results = inference_detector_onnx(det_ort_session, cur_frame, config=det_config, size=(args.resize_h, args.resize_w))
                 
-
+            #print("Before: ", person_results)
             filtered_person_results = []
             for person_result in person_results:
                 person_size = (person_result['bbox'][2]-person_result['bbox'][0])*(person_result['bbox'][3]-person_result['bbox'][1])
                 if person_size >= args.min_bbox_size:
                     filtered_person_results.append(person_result)
+            #print("After: ", filtered_person_results)
 
             # test a single image, with a list of bboxes.
             pose_results = inference_top_down_pose_model_onnx(
@@ -235,6 +236,7 @@ def main():
                 config=pose_config,
                 size=(args.resize_h, args.resize_w))
 
+            #print("Before: ", pose_results)
             new_pose_results = []	
             for pose_result in pose_results:	
                 kpoints = pose_result['keypoints'][:,-1]	
@@ -243,6 +245,8 @@ def main():
                 if np.sum(kpoints[2::2] > args.kpt_thr) >= args.min_points or np.sum(kpoints[1::2] > args.kpt_thr) >= args.min_points or \
                     np.sum(kpoints[:5] > args.kpt_thr) >= args.min_points :	
                     new_pose_results.append(pose_result)
+            #print("After: ", new_pose_results)
+
 
             # show the results
             vis_frame = vis_pose_result_onnx(
