@@ -13,10 +13,12 @@ from PIL import Image
 
 from mmpose.core.bbox import bbox_xywh2xyxy, bbox_xyxy2xywh
 from mmpose.core.evaluation.top_down_eval import keypoints_from_heatmaps
+from mmpose.core.evaluation.top_down_eval import keypoints_from_simcc
 from mmpose.core import imshow_bboxes, imshow_keypoints
 
 from mmpose.datasets.dataset_info import DatasetInfo
 from mmpose.datasets.pipelines import Compose
+
 
 @deprecated_api_warning(name_dict=dict(img_or_path='imgs_or_paths'))
 def inference_top_down_pose_model_onnx(ort_session,
@@ -344,7 +346,7 @@ def _inference_single_pose_model_onnx(ort_session,
     results = []
     for i in range(len(batch_data['img_metas'])):
         ort_inputs = {ort_session.get_inputs()[0].name: batch_data['img'][i].unsqueeze(0).numpy()}
-        ort_outs = ort_session.run(None, ort_inputs)[0]
+        ort_outs = ort_session.run(None, ort_inputs)
 
         result = decode_heatmap([batch_data['img_metas'][i]], ort_outs, cfg)['preds'][0]
         results.append(result)
@@ -358,7 +360,6 @@ def _inference_single_pose_model_onnx(ort_session,
     #        return_heatmap=return_heatmap)
 
     return results
-
 
 def decode_heatmap(img_metas, output, config, **kwargs):
         """Decode keypoints from heatmaps.
@@ -395,17 +396,31 @@ def decode_heatmap(img_metas, output, config, **kwargs):
             if bbox_ids is not None:
                 bbox_ids.append(img_metas[i]['bbox_id'])
 
-        preds, maxvals = keypoints_from_heatmaps(
-            output,
-            c,
-            s,
-            unbiased=config.model.test_cfg.get('unbiased_decoding', False),
-            post_process=config.model.test_cfg.get('post_process', 'default'),
-            kernel=config.model.test_cfg.get('modulate_kernel', 11),
-            valid_radius_factor=config.model.test_cfg.get('valid_radius_factor',
-                                                  0.0546875),
-            use_udp=config.model.test_cfg.get('use_udp', False),
-            target_type=config.model.test_cfg.get('target_type', 'GaussianHeatmap'))
+        if config.model.keypoint_head.type=='TopdownHeatmapSimCCHead':
+            preds, maxvals = keypoints_from_simcc(
+                output,
+                c,
+                s,
+                unbiased=config.model.test_cfg.get('unbiased_decoding', False),
+                post_process=config.model.test_cfg.get('post_process', 'default'),
+                kernel=config.model.test_cfg.get('modulate_kernel', 11),
+                valid_radius_factor=config.model.test_cfg.get('valid_radius_factor',
+                                                    0.0546875),
+                use_udp=config.model.test_cfg.get('use_udp', False),
+                target_type=config.model.test_cfg.get('target_type', 'GaussianHeatmap'),
+                split_ratio=config.model.test_cfg.get('split_ratio', None))
+        else:
+            preds, maxvals = keypoints_from_heatmaps(
+                output[0],
+                c,
+                s,
+                unbiased=config.model.test_cfg.get('unbiased_decoding', False),
+                post_process=config.model.test_cfg.get('post_process', 'default'),
+                kernel=config.model.test_cfg.get('modulate_kernel', 11),
+                valid_radius_factor=config.model.test_cfg.get('valid_radius_factor',
+                                                    0.0546875),
+                use_udp=config.model.test_cfg.get('use_udp', False),
+                target_type=config.model.test_cfg.get('target_type', 'GaussianHeatmap'))
 
         all_preds = np.zeros((batch_size, preds.shape[1], 3), dtype=np.float32)
         all_boxes = np.zeros((batch_size, 6), dtype=np.float32)

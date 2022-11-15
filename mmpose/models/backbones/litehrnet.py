@@ -15,7 +15,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
-from .utils import channel_shuffle, load_checkpoint
+from .utils import channel_shuffle, load_checkpoint, GhostModule
 from .utils import InvertedResidual as InvertedResidualv3
 from .mobilenet_v2 import InvertedResidual as InvertedResidualv2
 
@@ -541,6 +541,7 @@ class LiteHRModule(nn.Module):
             conv_cfg=None,
             norm_cfg=dict(type='BN'),
             with_cp=False,
+            is_ghost=False
     ):
         super().__init__()
         self._check_branches(num_branches, in_channels)
@@ -554,6 +555,7 @@ class LiteHRModule(nn.Module):
         self.norm_cfg = norm_cfg
         self.conv_cfg = conv_cfg
         self.with_cp = with_cp
+        self.is_ghost = is_ghost
 
         if self.module_type.upper() == 'LITE':
             self.layers = self._make_weighting_blocks(num_blocks, reduce_ratio)
@@ -700,18 +702,28 @@ class LiteHRModule(nn.Module):
             else:
                 se_cfg = None
 
-            layer = InvertedResidualv3(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                mid_channels=mid_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                se_cfg=se_cfg,
-                with_expand_conv=True,
-                conv_cfg=self.conv_cfg,
-                norm_cfg=self.norm_cfg,
-                act_cfg=dict(type=act),
-                with_cp=self.with_cp)
+            if self.is_ghost:
+                layer = GhostModule(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    ratio=2,
+                    dw_size=3,                    
+                    with_cp=self.with_cp)
+            else:
+                layer = InvertedResidualv3(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    mid_channels=mid_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    se_cfg=se_cfg,
+                    with_expand_conv=True,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg,
+                    act_cfg=dict(type=act),
+                    with_cp=self.with_cp)  
             in_channels = out_channels
             layers.append(layer)
 
@@ -1014,6 +1026,7 @@ class LiteHRNet(nn.Module):
         reduce_ratio = stages_spec['reduce_ratios'][stage_index]
         with_fuse = stages_spec['with_fuse'][stage_index]
         module_type = stages_spec['module_type'][stage_index]
+        is_ghost = stages_spec.get('is_ghost', [False]*(stage_index+1))[stage_index]
 
         modules = []
         for i in range(num_modules):
@@ -1034,7 +1047,8 @@ class LiteHRNet(nn.Module):
                     with_fuse=with_fuse,
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg,
-                    with_cp=self.with_cp))
+                    with_cp=self.with_cp,
+                    is_ghost=is_ghost))
             in_channels = modules[-1].in_channels
 
         return nn.Sequential(*modules), in_channels
