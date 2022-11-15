@@ -98,7 +98,7 @@ def inference_top_down_pose_model_onnx(ort_session,
         person_results = [{'bbox': np.array([0, 0, width, height])}]
 
     if len(person_results) == 0:
-        return pose_results
+        return pose_results, None
 
     # Change for-loop preprocess each bbox to preprocess all bboxes at once.
     bboxes = np.array([box['bbox'] for box in person_results])
@@ -120,10 +120,10 @@ def inference_top_down_pose_model_onnx(ort_session,
 
     # if bbox_thr remove all bounding box
     if len(bboxes_xywh) == 0:
-        return []
+        return [], None
 
     # poses is results['pred'] # N x 17x 3
-    poses = _inference_single_pose_model_onnx(
+    poses, raw_results = _inference_single_pose_model_onnx(
         ort_session,
         imgs_or_paths,
         bboxes_xywh,
@@ -143,7 +143,7 @@ def inference_top_down_pose_model_onnx(ort_session,
         pose_result['bbox'] = bbox_xyxy
         pose_results.append(pose_result)
 
-    return pose_results
+    return pose_results, raw_results
 
 def _inference_single_pose_model_onnx(ort_session,
                                  imgs_or_paths,
@@ -344,12 +344,14 @@ def _inference_single_pose_model_onnx(ort_session,
     batch_data = scatter(batch_data, [device])[0]
 
     results = []
+    raw_results = []
     for i in range(len(batch_data['img_metas'])):
         ort_inputs = {ort_session.get_inputs()[0].name: batch_data['img'][i].unsqueeze(0).numpy()}
         ort_outs = ort_session.run(None, ort_inputs)
 
         result = decode_heatmap([batch_data['img_metas'][i]], ort_outs, cfg)['preds'][0]
         results.append(result)
+        raw_results.append(ort_outs)
 
     # forward the model
     #with torch.no_grad():
@@ -359,7 +361,7 @@ def _inference_single_pose_model_onnx(ort_session,
     #        return_loss=False,
     #        return_heatmap=return_heatmap)
 
-    return results
+    return results, raw_results
 
 def decode_heatmap(img_metas, output, config, **kwargs):
         """Decode keypoints from heatmaps.

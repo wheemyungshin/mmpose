@@ -105,6 +105,11 @@ def main():
         '--detection-frame-stride',
         type=int,
         default=1)
+    parser.add_argument(
+        '--save-np',
+        action='store_true',
+        default=False,
+        help='whether to save raw numpy outputs.')
 
     args = parser.parse_args()
 
@@ -223,7 +228,7 @@ def main():
             #print("After: ", filtered_person_results)
 
             # test a single image, with a list of bboxes.
-            pose_results = inference_top_down_pose_model_onnx(
+            pose_results, raw_results = inference_top_down_pose_model_onnx(
                 pose_ort_session,
                 cur_frame,
                 filtered_person_results,
@@ -247,7 +252,6 @@ def main():
                     new_pose_results.append(pose_result)
             #print("After: ", new_pose_results)
 
-
             # show the results
             vis_frame = vis_pose_result_onnx(
                 pose_ort_session,
@@ -269,6 +273,20 @@ def main():
                     videoWriter.write(vis_frame)
                 elif input_type == "image":
                     cv2.imwrite(os.path.join(args.output_path, f'vis_{os.path.basename(input_path)}'), vis_frame)
+                    if raw_results is not None and args.save_np:
+                        if len(raw_results[0])==2:
+                            raw_results_save_x=[]
+                            raw_results_save_y=[]
+                            for raw_result in raw_results:
+                                raw_results_save_x.append(raw_result[1])
+                                raw_results_save_y.append(raw_result[0])
+                            np.save(os.path.join(args.output_path, f'raw_x_{os.path.splitext(os.path.basename(input_path))[0]}'), raw_results_save_x)
+                            np.save(os.path.join(args.output_path, f'raw_y_{os.path.splitext(os.path.basename(input_path))[0]}'), raw_results_save_y)
+                        else:
+                            raw_results_save=[]
+                            for raw_result in raw_results:
+                                raw_results_save.append(raw_result[0])
+                            np.save(os.path.join(args.output_path, f'raw_{os.path.splitext(os.path.basename(input_path))[0]}'), raw_results_save)
 
             if args.show and cv2.waitKey(1) & 0xFF == ord('q'):
                 break
