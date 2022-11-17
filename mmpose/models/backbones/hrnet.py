@@ -9,7 +9,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
 from .resnet import BasicBlock, Bottleneck, get_expansion
-from .utils import load_checkpoint
+from .utils import load_checkpoint, GhostBottleneck
 
 
 class HRModule(nn.Module):
@@ -270,7 +270,7 @@ class HRNet(nn.Module):
         (1, 32, 8, 8)
     """
 
-    blocks_dict = {'BASIC': BasicBlock, 'BOTTLENECK': Bottleneck}
+    blocks_dict = {'BASIC': BasicBlock, 'BOTTLENECK': Bottleneck, 'GHOST': GhostBottleneck}
 
     def __init__(self,
                  extra,

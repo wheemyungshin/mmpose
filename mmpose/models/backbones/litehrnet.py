@@ -15,7 +15,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 
 from mmpose.utils import get_root_logger
 from ..builder import BACKBONES
-from .utils import channel_shuffle, load_checkpoint, GhostModule
+from .utils import channel_shuffle, load_checkpoint, GhostBottleneck
 from .utils import InvertedResidual as InvertedResidualv3
 from .mobilenet_v2 import InvertedResidual as InvertedResidualv2
 
@@ -703,14 +703,14 @@ class LiteHRModule(nn.Module):
                 se_cfg = None
 
             if self.is_ghost:
-                layer = GhostModule(
+                layer = GhostBottleneck(
                     in_channels=in_channels,
+                    mid_channels=mid_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
-                    stride=stride,
-                    ratio=2,
-                    dw_size=3,                    
-                    with_cp=self.with_cp)
+                    stride=1,
+                    se_cfg=se_cfg,
+                    with_cp=False) 
             else:
                 layer = InvertedResidualv3(
                     in_channels=in_channels,
