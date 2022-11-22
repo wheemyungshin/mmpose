@@ -3,9 +3,8 @@ import logging
 from abc import ABCMeta, abstractmethod
 
 import torch.nn as nn
-
-from .utils import load_checkpoint
-
+	
+from mmcv_custom.checkpoint import load_checkpoint
 
 class BaseBackbone(nn.Module, metaclass=ABCMeta):
     """Base backbone.
@@ -14,7 +13,7 @@ class BaseBackbone(nn.Module, metaclass=ABCMeta):
     inherits this class should at least define its own `forward` function.
     """
 
-    def init_weights(self, pretrained=None):
+    def init_weights(self, pretrained=None, patch_padding='pad'):
         """Init backbone weights.
 
         Args:
@@ -25,7 +24,7 @@ class BaseBackbone(nn.Module, metaclass=ABCMeta):
         """
         if isinstance(pretrained, str):
             logger = logging.getLogger()
-            load_checkpoint(self, pretrained, strict=False, logger=logger)
+            load_checkpoint(self, pretrained, strict=False, logger=logger, patch_padding=patch_padding)
         elif pretrained is None:
             # use default initializer or customized initializer in subclasses
             pass

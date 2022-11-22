@@ -300,7 +300,7 @@ def get_expansion(block, expansion=None):
         elif issubclass(block, Bottleneck):
             expansion = 4
         else:
-            raise TypeError(f'expansion is not specified for {block.__name__}')
+            expansion = 1#raise TypeError(f'expansion is not specified for {block.__name__}')
     else:
         raise TypeError('expansion must be an integer or None')
 

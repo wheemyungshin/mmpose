@@ -142,7 +142,6 @@ class TopDownRandomFlip:
 
         return results
 
-
 @PIPELINES.register_module()
 class TopDownHalfBodyTransform:
     """Data augmentation with half-body transform. Keep only the upper body or
@@ -223,6 +222,175 @@ class TopDownHalfBodyTransform:
 
         return results
 
+@PIPELINES.register_module()
+class TopDownUpperBodyTransform:
+    """Data augmentation with half-body transform. Keep only the upper body or
+    the lower body at random.
+
+    Required key: 'joints_3d', 'joints_3d_visible', and 'ann_info'.
+
+    Modifies key: 'scale' and 'center'.
+
+    Args:
+        num_joints_half_body (int): Threshold of performing
+            half-body transform. If the body has fewer number
+            of joints (< num_joints_half_body), ignore this step.
+        prob_half_body (float): Probability of half-body transform.
+    """
+
+    def __init__(self, num_joints_upper_body=8, prob_upper_body=0.15):
+        self.num_joints_upper_body = num_joints_upper_body
+        self.prob_upper_body = prob_upper_body
+
+    @staticmethod
+    def upper_body_transform(cfg, joints_3d, joints_3d_visible):
+        """Get center&scale for half-body transform."""
+        upper_joints = []
+        for joint_id in range(cfg['num_joints']):
+            if joints_3d_visible[joint_id][0] > 0:
+                if joint_id in cfg['upper_body_ids']:
+                    upper_joints.append(joints_3d[joint_id])
+
+        if len(upper_joints) > 2:
+            selected_joints = upper_joints
+        else:
+            return None, None
+
+        selected_joints = np.array(selected_joints, dtype=np.float32)
+        center = selected_joints.mean(axis=0)[:2]
+
+        left_top = np.amin(selected_joints, axis=0)
+
+        right_bottom = np.amax(selected_joints, axis=0)
+
+        w = right_bottom[0] - left_top[0]
+        h = right_bottom[1] - left_top[1]
+
+        aspect_ratio = cfg['image_size'][0] / cfg['image_size'][1]
+
+        if w > aspect_ratio * h:
+            h = w * 1.0 / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+
+        scale = np.array([w / 200.0, h / 200.0], dtype=np.float32)
+        scale = scale * 1.5
+        return center, scale
+
+    def __call__(self, results):
+        """Perform data augmentation with half-body transform."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+
+        if (np.sum(joints_3d_visible[:, 0]) > self.num_joints_upper_body
+                and np.random.rand() < self.prob_upper_body):
+
+            c_upper_body, s_upper_body = self.upper_body_transform(
+                results['ann_info'], joints_3d, joints_3d_visible)
+
+            if c_upper_body is not None and s_upper_body is not None:
+                results['center'] = c_upper_body
+                results['scale'] = s_upper_body
+
+        return results
+
+@PIPELINES.register_module()
+class TopDownFourDirectionHalfBodyTransform:
+    """Data augmentation with half-body transform. Keep only the upper body or
+    the lower body at random.
+
+    Required key: 'joints_3d', 'joints_3d_visible', and 'ann_info'.
+
+    Modifies key: 'scale' and 'center'.
+
+    Args:
+        num_joints_half_body (int): Threshold of performing
+            half-body transform. If the body has fewer number
+            of joints (< num_joints_half_body), ignore this step.
+        prob_half_body (float): Probability of half-body transform.
+    """
+
+    def __init__(self, num_joints_half_body=8, prob_half_body=0.3):
+        self.num_joints_half_body = num_joints_half_body
+        self.prob_half_body = prob_half_body
+
+    @staticmethod
+    def four_dir_half_body_transform(cfg, joints_3d, joints_3d_visible):
+        """Get center&scale for half-body transform."""
+        right_joints = []
+        left_joints = []
+        upper_joints = []
+        lower_joints = []
+        for joint_id in range(cfg['num_joints']):
+            if joints_3d_visible[joint_id][0] > 0:
+                #left right division
+                if joint_id != 0: # zero for nose
+                    if joint_id % 2 == 0: # even for right
+                        right_joints.append(joints_3d[joint_id])
+                    else: # odd for left
+                        left_joints.append(joints_3d[joint_id])
+                
+                #upper lower division
+                if joint_id in cfg['upper_body_ids']:
+                    upper_joints.append(joints_3d[joint_id])
+                else:
+                    lower_joints.append(joints_3d[joint_id])
+
+        if np.random.randn() < 0.5:
+            if np.random.randn() < 0.5 and len(right_joints) > 2:
+                selected_joints = right_joints
+            elif len(left_joints) > 2:
+                selected_joints = left_joints
+            else:
+                selected_joints = right_joints
+        else:
+            if np.random.randn() < 0.5 and len(upper_joints) > 2:
+                selected_joints = upper_joints
+            elif len(lower_joints) > 2:
+                selected_joints = lower_joints
+            else:
+                selected_joints = upper_joints
+
+        if len(selected_joints) < 2:
+            return None, None
+
+        selected_joints = np.array(selected_joints, dtype=np.float32)
+        center = selected_joints.mean(axis=0)[:2]
+
+        left_top = np.amin(selected_joints, axis=0)
+
+        right_bottom = np.amax(selected_joints, axis=0)
+        
+        w = right_bottom[0] - left_top[0]
+        h = right_bottom[1] - left_top[1]
+
+        aspect_ratio = cfg['image_size'][0] / cfg['image_size'][1]
+
+        if w > aspect_ratio * h:
+            h = w * 1.0 / aspect_ratio
+        elif w < aspect_ratio * h:
+            w = h * aspect_ratio
+
+        scale = np.array([w / 200.0, h / 200.0], dtype=np.float32)
+        scale = scale * 1.5
+        return center, scale
+
+    def __call__(self, results):
+        """Perform data augmentation with half-body transform."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+
+        if (np.sum(joints_3d_visible[:, 0]) > self.num_joints_half_body
+                and np.random.rand() < self.prob_half_body):
+
+            c_half_body, s_half_body = self.four_dir_half_body_transform(
+                results['ann_info'], joints_3d, joints_3d_visible)
+
+            if c_half_body is not None and s_half_body is not None:
+                results['center'] = c_half_body
+                results['scale'] = s_half_body
+
+        return results
 
 @PIPELINES.register_module()
 class TopDownGetRandomScaleRotation:
@@ -330,6 +498,89 @@ class TopDownAffine:
         results['img'] = img
         results['joints_3d'] = joints_3d
         results['joints_3d_visible'] = joints_3d_visible
+
+        return results
+
+@PIPELINES.register_module()
+class TopDownGenerateSimCCTarget:
+    def __init__(self,
+                 sigma=2,
+                 split_ratio=None):
+        self.sigma = sigma
+        self.split_ratio = split_ratio
+
+    def generate_sa_simdr(self, cfg, joints, joints_vis):
+        '''
+        :param joints:  [num_joints, 3]
+        :param joints_vis: [num_joints, 3]
+        :return: target, target_weight(1: visible, 0: invisible)
+        '''
+        target_weight = np.ones((cfg['num_joints'], 1), dtype=np.float32)
+        target_weight[:, 0] = joints_vis[:, 0]
+
+        target_x = np.zeros((cfg['num_joints'],
+                            int(cfg['heatmap_size'][0])),
+                            dtype=np.float32)
+        target_y = np.zeros((cfg['num_joints'],
+                            int(cfg['heatmap_size'][1])),
+                            dtype=np.float32)                              
+
+        tmp_size = self.sigma * 3
+        for joint_id in range(cfg['num_joints']):
+            target_weight[joint_id] = \
+                self.adjust_target_weight(cfg, joints[joint_id], target_weight[joint_id], tmp_size)
+            if target_weight[joint_id] == 0:
+                continue
+
+            mu_x = joints[joint_id][0] * self.split_ratio
+            mu_y = joints[joint_id][1] * self.split_ratio
+            
+            x = np.arange(0, int(cfg['heatmap_size'][0]), 1, np.float32)
+            y = np.arange(0, int(cfg['heatmap_size'][1]), 1, np.float32)
+
+            v = target_weight[joint_id]
+            if v > 0.5:
+                target_x[joint_id] = (np.exp(- ((x - mu_x) ** 2) / (2 * self.sigma ** 2)))#/(self.sigma*np.sqrt(np.pi*2))
+                target_y[joint_id] = (np.exp(- ((y - mu_y) ** 2) / (2 * self.sigma ** 2)))#/(self.sigma*np.sqrt(np.pi*2))
+
+
+        target = [target_x, target_y]
+        '''
+        print("target_x: ", target_x)
+        print("target_y: ", target_y)
+        print("target_weight: ", target_weight)
+        print("target_x: ", target_x.shape)
+        print("target_y: ", target_y.shape)
+        print("target_weight: ", target_weight.shape)
+        print("target_weight_sum: ", target_weight.sum())
+        '''
+        return target, target_weight  
+
+    def adjust_target_weight(self, cfg, joint, target_weight, tmp_size):
+        # feat_stride = self.image_size / self.heatmap_size
+        mu_x = joint[0]
+        mu_y = joint[1]
+        # Check that any part of the gaussian is in-bounds
+        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
+        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
+        if ul[0] >= (cfg['heatmap_size'][0]) or ul[1] >= cfg['heatmap_size'][1] \
+                or br[0] < 0 or br[1] < 0:
+            # If not, just return the image as is
+            target_weight = 0
+
+        return target_weight
+
+    def __call__(self, results):
+        """Generate the target heatmap."""
+        joints_3d = results['joints_3d']
+        joints_3d_visible = results['joints_3d_visible']
+        cfg = results['ann_info']
+
+        target, target_weight = self.generate_sa_simdr(
+            cfg, joints_3d, joints_3d_visible)
+
+        results['target'] = target
+        results['target_weight'] = target_weight
 
         return results
 

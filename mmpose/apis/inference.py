@@ -14,10 +14,14 @@ from PIL import Image
 
 from mmpose.core.bbox import bbox_xywh2xyxy, bbox_xyxy2xywh
 from mmpose.core.post_processing import oks_nms
+from mmpose.core.evaluation.top_down_eval import keypoints_from_heatmaps
+from mmpose.core import imshow_bboxes, imshow_keypoints
+
 from mmpose.datasets.dataset_info import DatasetInfo
 from mmpose.datasets.pipelines import Compose, ToTensor
 from mmpose.models import build_posenet
 from mmpose.utils.hooks import OutputHook
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 

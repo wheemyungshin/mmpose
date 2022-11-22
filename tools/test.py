@@ -11,7 +11,7 @@ from mmcv.cnn import fuse_conv_bn
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
-from mmpose.apis import multi_gpu_test, single_gpu_test
+from mmpose.apis import multi_gpu_test, single_gpu_test, vis_pose_result
 from mmpose.datasets import build_dataloader, build_dataset
 from mmpose.models import build_posenet
 from mmpose.utils import setup_multi_processes

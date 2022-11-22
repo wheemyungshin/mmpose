@@ -62,11 +62,13 @@ def oks_iou(g, d, a_g, a_d, sigmas=None, vis_thr=None):
     Returns:
         list: The oks ious.
     """
+
     if sigmas is None:
         sigmas = np.array([
             .26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07, 1.07,
             .87, .87, .89, .89
         ]) / 10.0
+        
     vars = (sigmas * 2)**2
     xg = g[0::3]
     yg = g[1::3]

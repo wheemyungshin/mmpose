@@ -176,7 +176,9 @@ class TopDown(BasePose):
             features = self.neck(features)
         if self.with_keypoint:
             output_heatmap = self.keypoint_head.inference_model(
-                features, flip_pairs=None)
+                features, flip_pairs=None)     
+            if isinstance(output_heatmap, list):
+                output_heatmap = [output_heatmap[0].detach().cpu().numpy(), output_heatmap[1].detach().cpu().numpy()]   
 
         if self.test_cfg.get('flip_test', True):
             img_flipped = img.flip(3)
@@ -185,7 +187,7 @@ class TopDown(BasePose):
                 features_flipped = self.neck(features_flipped)
             if self.with_keypoint:
                 output_flipped_heatmap = self.keypoint_head.inference_model(
-                    features_flipped, img_metas[0]['flip_pairs'])
+                    features_flipped, img_metas[0]['flip_pairs'])                   
                 output_heatmap = (output_heatmap + output_flipped_heatmap)
                 if self.test_cfg.get('regression_flip_shift', False):
                     output_heatmap[..., 0] -= 1.0 / img_width
@@ -298,7 +300,7 @@ class TopDown(BasePose):
                 show=False)
 
         if pose_result:
-            imshow_keypoints(img, pose_result, skeleton, kpt_score_thr,
+            img = imshow_keypoints(img, pose_result, skeleton, kpt_score_thr,
                              pose_kpt_color, pose_link_color, radius,
                              thickness)
 

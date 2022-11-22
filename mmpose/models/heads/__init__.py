@@ -12,11 +12,12 @@ from .topdown_heatmap_base_head import TopdownHeatmapBaseHead
 from .topdown_heatmap_multi_stage_head import (TopdownHeatmapMSMUHead,
                                                TopdownHeatmapMultiStageHead)
 from .topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
+from .topdown_heatmap_simcc_head import TopdownHeatmapSimCCHead
 from .vipnas_heatmap_simple_head import ViPNASHeatmapSimpleHead
 from .voxelpose_head import CuboidCenterHead, CuboidPoseHead
 
 __all__ = [
-    'TopdownHeatmapSimpleHead', 'TopdownHeatmapMultiStageHead',
+    'TopdownHeatmapSimpleHead', 'TopdownHeatmapSimCCHead', 'TopdownHeatmapMultiStageHead',
     'TopdownHeatmapMSMUHead', 'TopdownHeatmapBaseHead',
     'AEHigherResolutionHead', 'AESimpleHead', 'AEMultiStageHead',
     'DeepposeRegressionHead', 'TemporalRegressionHead', 'Interhand3DHead',
