@@ -1,3 +1,5 @@
+auto_labels_vis/
+weights/
 onnx_inout_samples/
 NCAP_selected_results_hrnet_resize/
 NCAP_selected_results_hrnet/
@@ -9,7 +11,7 @@ work_dirs_from3090a/
 work_dirs/
 data/
 vis_results/
-get_ready.sh
+*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

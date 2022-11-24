@@ -1,4 +1,4 @@
-img_scale = (640, 640)  # height, width
+img_scale = (192, 256)  # height, width
 
 # model settings
 model = dict(

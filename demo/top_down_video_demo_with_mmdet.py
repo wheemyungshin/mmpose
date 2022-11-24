@@ -18,6 +18,7 @@ except (ImportError, ModuleNotFoundError):
     has_mmdet = False
 
 import numpy as np
+import json
 
 
 def main():
@@ -83,6 +84,16 @@ def main():
         '--resize-h',
         type=int,
         default=0)
+    parser.add_argument(
+        '--save-results',
+        action='store_true',
+        default=False,
+        help='whether to save raw numpy outputs.')
+    parser.add_argument(
+        '--frame-ratio',
+        type=int,
+        default=1,
+        help="if frame ratio is 0, the ratio is the video's fps")
 
 
     assert has_mmdet, 'Please install mmdet to run the demo.'
@@ -118,11 +129,12 @@ def main():
     if os.path.isdir(args.video_path):
         print("Video Path is Dir.")
         for video_file in os.listdir(args.video_path):
-            video_path = os.path.join(args.video_path, video_file)
-            video_path_list.append(video_path)
+            if os.path.splitext(video_file)[1] in [".mp4", ".MP4"]: 
+                video_path = os.path.join(args.video_path, video_file)
+                video_path_list.append(video_path)
     else:
         video_path_list = [args.video_path]
-
+    
     # read video
     for video_path in video_path_list:
         video = mmcv.VideoReader(video_path)
@@ -156,8 +168,19 @@ def main():
         # e.g. use ('backbone', ) to return backbone feature
         output_layer_names = None
 
+        if args.save_results:
+            save_results = {}
+            save_results['size'] = [args.resize_w, args.resize_h]
+
         print('Running inference...')
+        if args.frame_ratio == 0:
+            frame_ratio = int(fps)
+        else:
+            frame_ratio = args.frame_ratio
+        print(frame_ratio)
         for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
+            if frame_id % frame_ratio != 0:
+                continue
             if not (args.resize_h == 0 or args.resize_w == 0):
                 cur_frame = cv2.resize(cur_frame, (args.resize_w, args.resize_h), interpolation=cv2.INTER_AREA)
 
@@ -195,6 +218,16 @@ def main():
                     np.sum(kpoints[:5] > args.kpt_thr) >= args.min_points :	
                     new_pose_results.append(pose_result)
 
+            if args.save_results:
+                save_data = []
+                for new_pose_result in new_pose_results:
+                    temp_dict = {}
+                    temp_dict['bbox'] = new_pose_result['bbox'].tolist()
+                    temp_dict['keypoints'] = new_pose_result['keypoints'].tolist()
+                    save_data.append(temp_dict)
+
+                save_results[frame_id] = save_data
+
             # show the results
             vis_frame = vis_pose_result(
                 pose_model,
@@ -220,7 +253,10 @@ def main():
             videoWriter.release()
         if args.show:
             cv2.destroyAllWindows()
-
+        if args.save_results:
+            save_json_path = os.path.join(args.out_video_root, "{}.json".format(os.path.splitext(os.path.basename(video_path))[0]))
+            with open(save_json_path, "w") as json_file:
+                json.dump(save_results, json_file)
 
 if __name__ == '__main__':
     main()
