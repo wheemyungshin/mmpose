@@ -111,11 +111,11 @@
 
   设置人体的 `area` 为边界框的面积即可。在评测的时候，请按照这个[例子](https://github.com/open-mmlab/mmpose/blob/a82dd486853a8a471522ac06b8b9356db61f8547/mmpose/datasets/datasets/top_down/topdown_aic_dataset.py#L113) 设置 `use_area=False`。
 
-  - **`yolov7_predictions.json` 是什么文件？可以不使用它来训练姿态估计的模型吗？**
+  - **`yolov7_coco_predictions.json` 是什么文件？可以不使用它来训练姿态估计的模型吗？**
 
-  `yolov7_predictions.json` 包含了在 COCO 验证集上**检测**到的人体边界框，是使用 FasterRCNN 生成的。
+  `yolov7_coco_predictions.json` 包含了在 COCO 验证集上**检测**到的人体边界框，是使用 FasterRCNN 生成的。
   您可以使用真实标记的边界框来评测模型，设置 `use_gt_bbox=True` 和 `bbox_file=''` 即可。
-  或者您可以使用**检测**到的边界框来评测模型的泛化性，只要设置 `use_gt_bbox=False` 和 `bbox_file='yolov7_predictions.json'` 即可。
+  或者您可以使用**检测**到的边界框来评测模型的泛化性，只要设置 `use_gt_bbox=False` 和 `bbox_file='yolov7_coco_predictions.json'` 即可。
 
   ## 训练
 

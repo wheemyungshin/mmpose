@@ -144,7 +144,7 @@ configs/{topic}/{task}/{algorithm}/{dataset}/{backbone}_[model_setting]_{dataset
       use_gt_bbox=False,  # 测试时是否使用人工标注的边界框
       det_bbox_thr=0.0,  # 检测到的边界框分数的阈值。当 'use_gt_bbox=True' 时使用
       bbox_file='data/coco/person_detection_results/'  # 边界框检测文件的路径
-      'yolov7_predictions.json',
+      'yolov7_coco_predictions.json',
   )
 
   train_pipeline = [
