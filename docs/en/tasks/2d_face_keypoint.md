@@ -287,7 +287,7 @@ mmpose
         │   │-- coco_wholebody_train_v1.0.json
         │   |-- coco_wholebody_val_v1.0.json
         |-- person_detection_results
-        |   |-- COCO_val2017_detections_AP_H_56_person.json
+        |   |-- yolov7_predictions.json
         │-- train2017
         │   │-- 000000000009.jpg
         │   │-- 000000000025.jpg

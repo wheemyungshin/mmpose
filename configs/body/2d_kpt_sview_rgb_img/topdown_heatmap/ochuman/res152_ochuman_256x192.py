@@ -58,7 +58,7 @@ data_cfg = dict(
     use_gt_bbox=True,
     det_bbox_thr=0.0,
     bbox_file='data/coco/person_detection_results/'
-    'COCO_val2017_detections_AP_H_56_person.json',
+    'yolov7_predictions.json',
 )
 
 train_pipeline = [
