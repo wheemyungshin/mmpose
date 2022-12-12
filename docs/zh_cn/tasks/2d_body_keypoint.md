@@ -57,7 +57,7 @@ mmpose
         │   |-- person_keypoints_val2017.json
         │   |-- person_keypoints_test-dev-2017.json
         |-- person_detection_results
-        |   |-- yolov7_coco_predictions.json
+        |   |-- COCO_val2017_detections_AP_H_56_person.json
         |   |-- COCO_test-dev2017_detections_AP_H_609_person.json
         │-- train2017
         │   │-- 000000000009.jpg

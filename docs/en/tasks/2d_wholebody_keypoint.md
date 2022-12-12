@@ -44,7 +44,7 @@ mmpose
         │   │-- coco_wholebody_train_v1.0.json
         │   |-- coco_wholebody_val_v1.0.json
         |-- person_detection_results
-        |   |-- yolov7_coco_predictions.json
+        |   |-- COCO_val2017_detections_AP_H_56_person.json
         │-- train2017
         │   │-- 000000000009.jpg
         │   │-- 000000000025.jpg
@@ -98,7 +98,7 @@ mmpose
         │   │-- halpe_train_v1.json
         │   |-- halpe_val_v1.json
         |-- person_detection_results
-        |   |-- yolov7_coco_predictions.json
+        |   |-- COCO_val2017_detections_AP_H_56_person.json
         │-- hico_20160224_det
         │   │-- anno_bbox.mat
         │   │-- anno.mat

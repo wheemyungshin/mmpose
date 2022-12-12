@@ -138,7 +138,9 @@ def main():
     # read video
     for video_path in video_path_list:
         video = mmcv.VideoReader(video_path)
-        assert video.opened, f'Faild to load video file {video_path}'
+        if not video.opened:
+            print(f'Faild to load video file {video_path}')
+            continue
 
         if args.out_video_root == '':
             save_out_video = False
@@ -177,7 +179,6 @@ def main():
             frame_ratio = int(fps)
         else:
             frame_ratio = args.frame_ratio
-        print(frame_ratio)
         for frame_id, cur_frame in enumerate(mmcv.track_iter_progress(video)):
             if frame_id % frame_ratio != 0:
                 continue

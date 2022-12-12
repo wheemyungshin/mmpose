@@ -80,7 +80,7 @@ data_cfg = dict(
     det_bbox_thr=0.0,
     min_bbox_thr=1024,
     bbox_file='data/coco/person_detection_results/'
-    'yolov7_coco_predictions.json',
+    'COCO_val2017_detections_AP_H_56_person.json',
 )
 
 train_pipeline = [

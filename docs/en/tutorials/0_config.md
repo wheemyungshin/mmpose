@@ -145,7 +145,7 @@ configs/{topic}/{task}/{algorithm}/{dataset}/{backbone}_[model_setting]_{dataset
       use_gt_bbox=False,  # Whether to use ground-truth bounding box during testing
       det_bbox_thr=0.0,  # Threshold of detected bounding box score. Used when 'use_gt_bbox=True'
       bbox_file='data/coco/person_detection_results/'  # Path to the bounding box detection file
-      'yolov7_coco_predictions.json',
+      'COCO_val2017_detections_AP_H_56_person.json',
   )
 
   train_pipeline = [
