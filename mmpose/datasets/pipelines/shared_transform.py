@@ -212,15 +212,20 @@ class Collect:
         upscale = torch.nn.Upsample(scale_factor=4, mode='bilinear') 
         upsample_weight = upscale(torch.unsqueeze(torch.from_numpy(data['target']),0))
         vis_img = data['img']*0.4
-        for i in range(17):
+        for i in range(11):
             print("upsample_weight: ", upsample_weight.max())
             print("upsample_weight: ", upsample_weight.shape)
             vis_img[0] = vis_img[0] + upsample_weight[0][i]*0.6
             vis_img[1] = vis_img[1] + upsample_weight[0][i]*0.7
             vis_img[2] = vis_img[2] + upsample_weight[0][i]*0.8
+        #center = data['img_metas'].data['center']
+        #scale = data['img_metas'].data['scale']
+        #vis_img = vis_img[:, 
+        #    int(center[0]-scale[0]*100) : int(center[0]+scale[0]*100), 
+        #    int(center[1]-scale[1]*100) : int(center[1]+scale[1]*100)]
         save_image(vis_img, "../vis_train_imgs/"+meta['image_file'][-12:])
         '''
-        
+
         '''
         K, W = data['target'][0].shape
         H = data['target'][1].shape[-1]

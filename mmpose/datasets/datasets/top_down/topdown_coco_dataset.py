@@ -162,9 +162,29 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
             joints_3d_visible = np.zeros((num_joints, 3), dtype=np.float32)
 
             keypoints = np.array(obj['keypoints']).reshape(-1, 3)
-            joints_3d[:, :2] = keypoints[:, :2]
-            joints_3d_visible[:, :2] = np.minimum(1, keypoints[:, 2:3])
-
+            joints_3d[:num_joints, :2] = keypoints[:num_joints, :2]
+            joints_3d_visible[:num_joints, :2] = np.minimum(1, keypoints[:num_joints, 2:3])
+                
+            '''
+            if self.upperbody_only:
+                print("joints_3d:", joints_3d , "/", joints_3d_visible)
+                joints_3d[self.ann_info['lower_body_ids'],:] = 0
+                joints_3d_visible[self.ann_info['lower_body_ids'],:] = 0
+                print("joints_3d (filtered):", joints_3d , "/", joints_3d_visible)
+                image_file = osp.join(self.img_prefix, self.id2name[img_id])
+                rec.append({
+                    'image_file': image_file,
+                    'bbox': obj['clean_bbox'][:4],
+                    'rotation': 0,
+                    'joints_3d': joints_3d,
+                    'joints_3d_visible': joints_3d_visible,
+                    'dataset': self.dataset_name,
+                    'bbox_score': 1,
+                    'bbox_id': bbox_id
+                })
+                bbox_id = bbox_id + 1
+            else:
+            '''
             image_file = osp.join(self.img_prefix, self.id2name[img_id])
             rec.append({
                 'image_file': image_file,
@@ -329,7 +349,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
 
         # do evaluation only if the ground truth keypoint annotations exist
         if 'annotations' in self.coco.dataset:
-            info_str = self._do_python_keypoint_eval(res_file)
+            info_str = self._do_python_keypoint_eval(res_file, num_joints)
             name_value = OrderedDict(info_str)
 
             if tmp_folder is not None:
@@ -387,9 +407,12 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
 
         return cat_results
 
-    def _do_python_keypoint_eval(self, res_file):
+    def _do_python_keypoint_eval(self, res_file, num_joints=17):
         """Keypoint evaluation using COCOAPI."""
         coco_det = self.coco.loadRes(res_file)
+        if num_joints==11:
+            for i in range(len(self.coco.dataset['annotations'])):
+                self.coco.dataset['annotations'][i]['keypoints'] = self.coco.dataset['annotations'][i]['keypoints'][:33]
         coco_eval = COCOeval(self.coco, coco_det, 'keypoints', self.sigmas)
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
