@@ -123,8 +123,14 @@ class MobileNetV2(BaseBackbone):
 
     # Parameters to build layers. 4 parameters are needed to construct a
     # layer, from left to right: expand_ratio, channel, num_blocks, stride.
+    '''
     arch_settings = [[1, 16, 1, 1], [6, 24, 2, 2], [6, 32, 3, 2],
                      [6, 64, 4, 2], [6, 96, 3, 1], [6, 160, 3, 2],
+                     [6, 320, 1, 1]]
+    '''
+    
+    arch_settings = [[1, 16, 1, 1], [6, 24, 1, 2], [6, 32, 2, 2],
+                     [6, 64, 3, 2], [6, 96, 1, 1], [6, 160, 2, 2],
                      [6, 320, 1, 1]]
 
     def __init__(self,
