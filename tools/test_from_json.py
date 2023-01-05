@@ -23,6 +23,9 @@ except ImportError:
                   'Please install mmcv>=1.1.4')
     from mmpose.core import wrap_fp16_model
 
+import json
+import numpy as np
+import cv2
 
 def parse_args():
     parser = argparse.ArgumentParser(description='mmpose test model')
@@ -155,6 +158,7 @@ def main():
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
 
+    '''
     if not distributed:
         model = MMDataParallel(model, device_ids=[args.gpu_id])
         outputs = single_gpu_test(model, data_loader)
@@ -165,24 +169,61 @@ def main():
             broadcast_buffers=False)
         outputs = multi_gpu_test(model, data_loader, args.tmpdir,
                                  args.gpu_collect)
+    '''
+    with open("predictions_pose.json", 'r') as f:
+        outputs = json.load(f)
 
     rank, _ = get_dist_info()
     eval_config = cfg.get('evaluation', {})
     eval_config = merge_configs(eval_config, dict(metric=args.eval))
 
+
+    np_outputs = []
+    for output in outputs:
+        np_dict = {}
+        np_dict['preds'] = np.array(output['preds'])
+        np_dict['boxes'] = np.array(output['boxes'])
+        np_dict['image_paths'] = ['data/coco/val2017/'+output['image_paths'][0]]
+        np_dict['bbox_ids'] = np.array(output['bbox_ids'])
+        np_dict['output_heatmap'] = output['output_heatmap']
+        np_outputs.append(np_dict)
+
+    for i in range(len(np_outputs)):
+        print(np_outputs[i]['preds'])
+        print(np_outputs[i]['boxes'])
+        print((np_outputs[i]['image_paths']))
+        print((np_outputs[i]['bbox_ids']))
+    print(len(np_outputs))
+
+    
+    for output in np_outputs:
+        save_img = cv2.imread(output['image_paths'][0])
+        vis_boxes = output['boxes']
+        if len(vis_boxes) > 0:
+            for vis_box in vis_boxes:
+                x1 = int(vis_box[0] - vis_box[2]*100)
+                y1 = int(vis_box[1] - vis_box[3]*100)
+                x2 = int(vis_box[0] + vis_box[2]*100)
+                y2 = int(vis_box[1] + vis_box[3]*100)
+                save_img = cv2.rectangle(save_img, (x1, y1), \
+                            (x2, y2), (200,200,200), 3, cv2.LINE_AA)
+            for vis_joint in output['preds'][0]:
+                x1 = int(vis_joint[0] - 1)
+                y1 = int(vis_joint[1] - 1)
+                x2 = int(vis_joint[0] + 2)
+                y2 = int(vis_joint[1] + 2)
+                save_img = cv2.rectangle(save_img, (x1, y1), \
+                            (x2, y2), (0,0,200), 3, cv2.LINE_AA)
+            
+        cv2.imwrite("test_imgs/"+output['image_paths'][0].split('/')[-1], save_img)
+
     if rank == 0:
         if args.out:
             print(f'\nwriting results to {args.out}')
-            mmcv.dump(outputs, args.out)
+            mmcv.dump(np_outputs, args.out)
 
-        print(len(outputs))
-        for i in range(len(outputs)):
-            print(outputs[i]['preds'])
-            print(outputs[i]['boxes'])
-            print((outputs[i]['image_paths']))
-            print((outputs[i]['bbox_ids']))
         #print(outputs)#[{'preds': [32, 17, 3], 'boxes' : [32, 6], 'image_paths': [32], 'bbox_ids': [32], 'output_heatmap': None} ...]
-        results = dataset.evaluate(outputs, cfg.work_dir, **eval_config)
+        results = dataset.evaluate(np_outputs, cfg.work_dir, **eval_config)
         print(results)
         for k, v in sorted(results.items()):
             print(f'{k}: {v}')
