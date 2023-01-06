@@ -7,13 +7,10 @@ import warnings
 import mmcv
 import torch
 from mmcv import Config, DictAction
-from mmcv.cnn import fuse_conv_bn
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
-from mmcv.runner import get_dist_info, init_dist, load_checkpoint
+from mmcv.runner import get_dist_info, init_dist
 
-from mmpose.apis import multi_gpu_test, single_gpu_test, vis_pose_result
 from mmpose.datasets import build_dataloader, build_dataset
-from mmpose.models import build_posenet
 from mmpose.utils import setup_multi_processes
 
 try:
@@ -30,15 +27,10 @@ import cv2
 def parse_args():
     parser = argparse.ArgumentParser(description='mmpose test model')
     parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument('predictions', help='json file path')
     parser.add_argument('--out', help='output result file')
     parser.add_argument(
         '--work-dir', help='the dir to save evaluation results')
-    parser.add_argument(
-        '--fuse-conv-bn',
-        action='store_true',
-        help='Whether to fuse conv and bn, this will slightly increase'
-        'the inference speed')
     parser.add_argument(
         '--gpu-id',
         type=int,
@@ -51,19 +43,7 @@ def parse_args():
         nargs='+',
         help='evaluation metric, which depends on the dataset,'
         ' e.g., "mAP" for MSCOCO')
-    parser.add_argument(
-        '--gpu-collect',
-        action='store_true',
-        help='whether to use gpu to collect results')
     parser.add_argument('--tmpdir', help='tmp dir for writing some results')
-    parser.add_argument(
-        '--cfg-options',
-        nargs='+',
-        action=DictAction,
-        default={},
-        help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. For example, '
-        "'--cfg-options model.backbone.depth=18 model.backbone.with_cp=True'")
     parser.add_argument(
         '--launcher',
         choices=['none', 'pytorch', 'slurm', 'mpi'],
@@ -91,9 +71,6 @@ def main():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
-
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
 
     # set multi-process settings
     setup_multi_processes(cfg)
@@ -148,29 +125,7 @@ def main():
     }
     data_loader = build_dataloader(dataset, **test_loader_cfg)
 
-    # build the model and load checkpoint
-    model = build_posenet(cfg.model)
-    fp16_cfg = cfg.get('fp16', None)
-    if fp16_cfg is not None:
-        wrap_fp16_model(model)
-    load_checkpoint(model, args.checkpoint, map_location='cpu')
-
-    if args.fuse_conv_bn:
-        model = fuse_conv_bn(model)
-
-    '''
-    if not distributed:
-        model = MMDataParallel(model, device_ids=[args.gpu_id])
-        outputs = single_gpu_test(model, data_loader)
-    else:
-        model = MMDistributedDataParallel(
-            model.cuda(),
-            device_ids=[torch.cuda.current_device()],
-            broadcast_buffers=False)
-        outputs = multi_gpu_test(model, data_loader, args.tmpdir,
-                                 args.gpu_collect)
-    '''
-    with open("predictions_pose.json", 'r') as f:
+    with open(args.predictions, 'r') as f:
         outputs = json.load(f)
 
     rank, _ = get_dist_info()
@@ -183,7 +138,7 @@ def main():
         np_dict = {}
         np_dict['preds'] = np.array(output['preds'])
         np_dict['boxes'] = np.array(output['boxes'])
-        np_dict['image_paths'] = ['data/coco/val2017/'+output['image_paths'][0]]
+        np_dict['image_paths'] = ['data/coco/val2017/'+output['image_paths'][0]]#output['image_paths']#
         np_dict['bbox_ids'] = np.array(output['bbox_ids'])
         np_dict['output_heatmap'] = output['output_heatmap']
         np_outputs.append(np_dict)
@@ -215,7 +170,7 @@ def main():
                 save_img = cv2.rectangle(save_img, (x1, y1), \
                             (x2, y2), (0,0,200), 3, cv2.LINE_AA)
             
-        cv2.imwrite("test_imgs/"+output['image_paths'][0].split('/')[-1], save_img)
+        cv2.imwrite("test_imgs/"+str(output['bbox_ids'])+'_'+output['image_paths'][0].split('/')[-1], save_img)
 
     if rank == 0:
         if args.out:
