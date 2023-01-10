@@ -175,15 +175,8 @@ def main():
             print(f'\nwriting results to {args.out}')
             mmcv.dump(outputs, args.out)
 
-        print(len(outputs))
-        for i in range(len(outputs)):
-            print(outputs[i]['preds'])
-            print(outputs[i]['boxes'])
-            print((outputs[i]['image_paths']))
-            print((outputs[i]['bbox_ids']))
         #print(outputs)#[{'preds': [32, 17, 3], 'boxes' : [32, 6], 'image_paths': [32], 'bbox_ids': [32], 'output_heatmap': None} ...]
         results = dataset.evaluate(outputs, cfg.work_dir, **eval_config)
-        print(results)
         for k, v in sorted(results.items()):
             print(f'{k}: {v}')
 
